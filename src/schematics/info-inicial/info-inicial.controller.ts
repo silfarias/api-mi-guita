@@ -28,6 +28,7 @@ import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.d
 import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
 import { InfoInicialDTO } from './dto/info-inicial.dto';
+import { SaldosActualesDTO } from './dto/saldos-actuales.dto';
 import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -134,5 +135,22 @@ export class InfoInicialController {
     @Request() req: any,
   ): Promise<any> {
     return await this.infoInicialService.remove(id, req.user.id);
+  }
+
+  @Get(':id/saldos')
+  @ApiOperation({ summary: 'Obtener saldos actuales por medio de pago' })
+  @ApiParam({ name: 'id', required: true, description: 'ID de la Información Inicial' })
+  @ApiOkResponse({
+    type: SaldosActualesDTO,
+    description: 'Saldos actuales calculados correctamente',
+  })
+  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
+  @ApiNotFoundResponse({ description: 'No se encontró la información inicial' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async calcularSaldosActuales(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ): Promise<SaldosActualesDTO> {
+    return await this.infoInicialService.calcularSaldosActuales(id, req.user.id);
   }
 }

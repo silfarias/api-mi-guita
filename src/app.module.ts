@@ -11,6 +11,8 @@ import { InfoInicialModule } from './schematics/info-inicial/info-inicial.module
 import { MovimientoModule } from './schematics/movimiento/movimiento.module';
 import { CategoriaModule } from './schematics/categoria/categoria.module';
 import { MedioPagoModule } from './schematics/medio-pago/medio-pago.module';
+import { ReportesModule } from './schematics/reportes/reportes.module';
+import { TransferenciaModule } from './schematics/transferencia/transferencia.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { MedioPagoModule } from './schematics/medio-pago/medio-pago.module';
     MovimientoModule,
     CategoriaModule,
     MedioPagoModule,
+    ReportesModule,
+    TransferenciaModule,
   ],
   controllers: [],
   providers: [],

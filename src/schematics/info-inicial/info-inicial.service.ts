@@ -3,6 +3,7 @@ import { CreateInfoInicialRequestDto } from './dto/create-info-inicial-request.d
 import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.dto';
 import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
 import { InfoInicialDTO } from './dto/info-inicial.dto';
+import { SaldosActualesDTO, SaldoActualDTO } from './dto/saldos-actuales.dto';
 import { InfoInicialMapper } from './mappers/info-inicial.mapper';
 import { InfoInicialRepository } from './repository/info-inicial.repository';
 import { InfoInicialMedioPagoRepository } from './repository/info-inicial-mediopago.repository';
@@ -12,6 +13,9 @@ import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { UsuarioRepository } from '../usuario/repository/usuario.repository';
 import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
+import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
+import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
+import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
 
 @Injectable()
 export class InfoInicialService {
@@ -21,6 +25,8 @@ export class InfoInicialService {
     private infoInicialMedioPagoRepository: InfoInicialMedioPagoRepository,
     private usuarioRepository: UsuarioRepository,
     private medioPagoRepository: MedioPagoRepository,
+    private movimientoRepository: MovimientoRepository,
+    private medioPagoMapper: MedioPagoMapper,
   ) {}
 
   async findOne(id: number): Promise<InfoInicialDTO> {
@@ -295,5 +301,92 @@ export class InfoInicialService {
       return null;
     }
     return await this.infoInicialMapper.entity2DTO(infoInicial);
+  }
+
+  async calcularSaldosActuales(id: number, usuarioId: number): Promise<SaldosActualesDTO> {
+    // Verificar que la información inicial existe y pertenece al usuario
+    const infoInicial = await this.infoInicialRepository.findOne({
+      where: { id: id },
+      relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
+    });
+
+    if (!infoInicial) {
+      throw new NotFoundException({
+        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+        message: 'Información inicial no encontrada',
+        details: JSON.stringify({ id }),
+      });
+    }
+
+    if (infoInicial.usuario.id !== usuarioId) {
+      throw new BadRequestException({
+        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+        message: 'No tienes permiso para ver los saldos de esta información inicial',
+        details: JSON.stringify({ id }),
+      });
+    }
+
+    // Obtener todos los movimientos de esta información inicial
+    const movimientos = await this.movimientoRepository.find({
+      where: { infoInicial: { id: infoInicial.id } },
+      relations: ['medioPago'],
+    });
+
+    // Calcular saldos por medio de pago
+    const saldosMap = new Map<number, SaldoActualDTO>();
+
+    // Inicializar saldos con los montos iniciales
+    if (infoInicial.infoInicialMedioPagos) {
+      for (const infoMedioPago of infoInicial.infoInicialMedioPagos) {
+        const medioPagoDTO = await this.medioPagoMapper.entity2DTO(infoMedioPago.medioPago);
+        saldosMap.set(infoMedioPago.medioPago.id, {
+          medioPago: medioPagoDTO,
+          saldoInicial: Number(infoMedioPago.monto),
+          totalIngresos: 0,
+          totalEgresos: 0,
+          saldoActual: Number(infoMedioPago.monto),
+        });
+      }
+    }
+
+    // Calcular movimientos por medio de pago
+    for (const movimiento of movimientos) {
+      if (movimiento.medioPago && movimiento.medioPago.id) {
+        const medioPagoId = movimiento.medioPago.id;
+        
+        if (!saldosMap.has(medioPagoId)) {
+          const medioPagoDTO = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
+          saldosMap.set(medioPagoId, {
+            medioPago: medioPagoDTO,
+            saldoInicial: 0,
+            totalIngresos: 0,
+            totalEgresos: 0,
+            saldoActual: 0,
+          });
+        }
+
+        const saldo = saldosMap.get(medioPagoId)!;
+        const monto = Number(movimiento.monto);
+
+        if (movimiento.tipoMovimiento === TipoMovimientoEnum.INGRESO) {
+          saldo.totalIngresos += monto;
+        } else {
+          saldo.totalEgresos += monto;
+        }
+      }
+    }
+
+    // Calcular saldos actuales
+    for (const saldo of saldosMap.values()) {
+      saldo.saldoActual = saldo.saldoInicial + saldo.totalIngresos - saldo.totalEgresos;
+    }
+
+    const saldosPorMedioPago = Array.from(saldosMap.values());
+    const balanceTotal = saldosPorMedioPago.reduce((sum, saldo) => sum + saldo.saldoActual, 0);
+
+    return {
+      saldosPorMedioPago,
+      balanceTotal,
+    };
   }
 }
