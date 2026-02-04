@@ -1,0 +1,52 @@
+services:
+  database:
+    image: mysql:8.3
+    restart: always
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    container_name: db_miguita
+    volumes:
+      - ./mysqldata:/var/lib/mysql
+#     networks:
+#       - api-network
+#     healthcheck:
+#       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+
+#   api:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     restart: always
+#     ports:
+#       - '3000:3000'
+#     environment:
+#       DB_HOST: database
+#       DB_PORT: 3306
+#       DB_USERNAME: ${DB_USERNAME}
+#       DB_PASSWORD: ${DB_PASSWORD}
+#       DB_NAME: ${DB_NAME}
+#       JWT_SECRET: ${JWT_SECRET}
+#       NODE_ENV: ${NODE_ENV}
+#       PORT: ${PORT}
+#       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID}
+#       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+#       R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+#       R2_BUCKET_NAME: ${R2_BUCKET_NAME}
+#       R2_DEVELOPMENT_URL: ${R2_DEVELOPMENT_URL}
+#       R2_PRODUCTION_URL: ${R2_PRODUCTION_URL}
+#     container_name: api_nonna
+#     depends_on:
+#       database:
+#         condition: service_healthy
+#     networks:
+#       - api-network
+
+# networks:
+#   api-network:
+#     driver: bridge
