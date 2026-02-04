@@ -7,7 +7,7 @@ import { CategoriaDTO } from 'src/schematics/categoria/dto/categoria.dto';
 import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
 import { IsEnum } from 'class-validator';
 
-export class MovimientoDTO extends CommonDTO {
+export class MovimientoSimpleDTO extends CommonDTO {
   @ApiProperty({ description: 'Fecha del movimiento', type: Date })
   @Expose()
   fecha: Date;
@@ -36,6 +36,42 @@ export class MovimientoDTO extends CommonDTO {
   medioPago: MedioPagoDTO;
 }
 
+export class MovimientoDTO {
+
+  @ApiProperty({ description: 'Información inicial asociada', type: () => InfoInicialDTO })
+  @Expose()
+  @Type(() => InfoInicialDTO)
+  infoInicial: InfoInicialDTO;
+
+  @ApiProperty({ description: 'Fecha del movimiento', type: Date })
+  @Expose()
+  fecha: Date;
+
+  @ApiProperty({ description: 'Tipo de movimiento', enum: TipoMovimientoEnum })
+  @Expose()
+  @IsEnum(TipoMovimientoEnum)
+  tipoMovimiento: TipoMovimientoEnum;
+
+  @ApiProperty({ description: 'Categoría del movimiento', type: () => CategoriaDTO })
+  @Expose()
+  @Type(() => CategoriaDTO)
+  categoria: CategoriaDTO;
+
+  @ApiProperty({ description: 'Descripción del movimiento', type: String })
+  @Expose()
+  descripcion: string;
+
+  @ApiProperty({ description: 'Monto del movimiento', type: Number })
+  @Expose()
+  monto: number;
+
+  @ApiProperty({ description: 'Medio de pago utilizado', type: () => MedioPagoDTO })
+  @Expose()
+  @Type(() => MedioPagoDTO)
+  medioPago: MedioPagoDTO;
+}
+
+
 export class MovimientoAgrupadoDTO {
 
   @ApiProperty({ description: 'Información inicial asociada', type: () => InfoInicialDTO })
@@ -43,9 +79,9 @@ export class MovimientoAgrupadoDTO {
   @Type(() => InfoInicialDTO)
   infoInicial: InfoInicialDTO;
 
-  @ApiProperty({ description: 'Movimientos agrupados por esta información inicial', type: () => [MovimientoDTO] })
+  @ApiProperty({ description: 'Movimientos agrupados por esta información inicial', type: () => [MovimientoSimpleDTO] })
   @Expose()
-  @Type(() => MovimientoDTO)
-  movimientos: MovimientoDTO[];
+  @Type(() => MovimientoSimpleDTO)
+  movimientos: MovimientoSimpleDTO[];
 
 }

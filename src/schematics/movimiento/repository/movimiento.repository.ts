@@ -69,7 +69,14 @@ export class MovimientoRepository extends Repository<Movimiento> {
   async findOneById(id: number): Promise<Movimiento> {
     const movimiento = await this.findOne({
       where: { id: id },
-      relations: ['infoInicial', 'infoInicial.usuario', 'categoria', 'medioPago'],
+      relations: [
+        'infoInicial', 
+        'infoInicial.usuario', 
+        'infoInicial.infoInicialMedioPagos',
+        'infoInicial.infoInicialMedioPagos.medioPago',
+        'categoria', 
+        'medioPago'
+      ],
     });
     if (!movimiento) {
       throw new NotFoundException({

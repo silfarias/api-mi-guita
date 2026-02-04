@@ -41,13 +41,27 @@ export class MovimientoController {
   ) {}
 
   @Get('search')
+  @ApiOperation({ summary: 'Buscar movimientos por usuario autenticado' })
+  @ApiOkResponse({ 
+    type: PageDto<MovimientoDTO>, 
+    description: 'Lista paginada de Movimientos del usuario autenticado' 
+  })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async search(
+    @Query() request: SearchMovimientoRequestDto,
+  ): Promise<PageDto<MovimientoDTO>> {
+    const reqDto = plainToInstance(SearchMovimientoRequestDto, request);
+    return await this.movimientoService.search(reqDto);
+  }
+
+  @Get('por-info')
   @ApiOperation({ summary: 'Buscar movimientos agrupados por información inicial' })
   @ApiOkResponse({ 
     type: PageDto<MovimientoAgrupadoDTO>, 
     description: 'Lista paginada de Movimientos agrupados por información inicial del usuario autenticado' 
   })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async search(
+  async searchAgrupado(
     @Query() request: SearchMovimientoRequestDto,
     @Request() req: any,
   ): Promise<PageDto<MovimientoAgrupadoDTO>> {

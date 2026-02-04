@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { CreateMovimientoRequestDto } from './dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from './dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from './dto/search-movimiento-request.dto';
-import { MovimientoDTO, MovimientoAgrupadoDTO } from './dto/movimiento.dto';
+import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO } from './dto/movimiento.dto';
 import { MovimientoMapper } from './mappers/movimiento.mapper';
 import { MovimientoRepository } from './repository/movimiento.repository';
 import { PageDto } from 'src/common/dto/page.dto';
@@ -24,6 +24,11 @@ export class MovimientoService {
   async findOne(id: number): Promise<MovimientoDTO> {
     const movimiento = await this.movimientoRepository.findOneById(id);
     return await this.movimientoMapper.entity2DTO(movimiento);
+  }
+
+  async search(request: SearchMovimientoRequestDto): Promise<PageDto<MovimientoDTO>> {
+    const movimientoPage = await this.movimientoRepository.search(request);
+    return this.movimientoMapper.page2Dto(request, movimientoPage);
   }
 
   async searchAgrupado(request: SearchMovimientoRequestDto, usuarioId: number): Promise<PageDto<MovimientoAgrupadoDTO>> {

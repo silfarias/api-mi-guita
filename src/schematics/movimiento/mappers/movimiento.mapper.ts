@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { Movimiento } from '../entities/movimiento.entity';
-import { MovimientoDTO, MovimientoAgrupadoDTO } from '../dto/movimiento.dto';
+import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO } from '../dto/movimiento.dto';
 import { CreateMovimientoRequestDto } from '../dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from '../dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from '../dto/search-movimiento-request.dto';
@@ -23,6 +23,26 @@ export class MovimientoMapper {
 
   async entity2DTO(movimiento: Movimiento): Promise<MovimientoDTO> {
     const dto = plainToInstance(MovimientoDTO, movimiento, {
+      excludeExtraneousValues: true,
+    });
+    
+    if (movimiento.infoInicial) {
+      dto.infoInicial = await this.infoInicialMapper.entity2DTO(movimiento.infoInicial);
+    }
+    
+    if (movimiento.categoria) {
+      dto.categoria = await this.categoriaMapper.entity2DTO(movimiento.categoria);
+    }
+    
+    if (movimiento.medioPago) {
+      dto.medioPago = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
+    }
+    
+    return dto;
+  }
+
+  async entity2SimpleDTO(movimiento: Movimiento): Promise<MovimientoSimpleDTO> {
+    const dto = plainToInstance(MovimientoSimpleDTO, movimiento, {
       excludeExtraneousValues: true,
     });
     
@@ -96,7 +116,7 @@ export class MovimientoMapper {
         const infoInicial = movimientos[0].infoInicial;
         const movimientosDTOs = await Promise.all(
           movimientos.map(async (movimiento) => {
-            return this.entity2DTO(movimiento);
+            return this.entity2SimpleDTO(movimiento);
           })
         );
 
