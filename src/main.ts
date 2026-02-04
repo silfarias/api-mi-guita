@@ -40,8 +40,10 @@ async function bootstrap() {
 
   setupSwagger(app);
 
+  const host = configService.get('HOST') || '0.0.0.0';
   const port = configService.get('PORT') || 3000;
-  await app.listen(port);
+  await app.listen(port, host);
+  console.log(`🚀 Servidor corriendo en http://${host}:${port}`);
   
 }
 
