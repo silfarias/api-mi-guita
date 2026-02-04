@@ -7,6 +7,10 @@ import { LoggingMiddleware } from './middlewares/log-middleware';
 import { AuthModule } from './schematics/auth/auth.module';
 import { UsuarioModule } from './schematics/usuario/usuario.module';
 import { PersonaModule } from './schematics/persona/persona.module';
+import { InfoInicialModule } from './schematics/info-inicial/info-inicial.module';
+import { MovimientoModule } from './schematics/movimiento/movimiento.module';
+import { CategoriaModule } from './schematics/categoria/categoria.module';
+import { MedioPagoModule } from './schematics/medio-pago/medio-pago.module';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import { PersonaModule } from './schematics/persona/persona.module';
     AuthModule,
     PersonaModule,
     UsuarioModule,
+    InfoInicialModule,
+    MovimientoModule,
+    CategoriaModule,
+    MedioPagoModule,
   ],
   controllers: [],
   providers: [],

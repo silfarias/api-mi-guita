@@ -1,6 +1,7 @@
 import { BaseEntity } from 'src/common/models/baseentity';
 import { Persona } from 'src/schematics/persona/entities/persona.entity';
-import { Column, Entity, JoinColumn, OneToOne } from 'typeorm';
+import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
+import { Column, Entity, JoinColumn, OneToOne, OneToMany } from 'typeorm';
 
 @Entity('user_01_cab_usuario')
 export class Usuario extends BaseEntity {
@@ -26,6 +27,9 @@ export class Usuario extends BaseEntity {
   @OneToOne(() => Persona, (persona) => persona.usuario, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'rela_user02' })
   persona: Persona;
+
+  @OneToMany(() => InfoInicial, (infoInicial) => infoInicial.usuario)
+  infoIniciales: InfoInicial[];
 
   static fromId(id: number) {
     const usuario = new Usuario();

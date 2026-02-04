@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { Usuario } from '../entities/usuario.entity';
-import { UsuarioDTO } from '../dto/usuario.dto';
+import { UsuarioDTO, UsuarioSimpleDTO } from '../dto/usuario.dto';
 import { CreateUsuarioRequestDto, CreateUsuarioRequestDtoWithPersonaId } from '../dto/create-usuario-request.dto';
 import { UpdateUsuarioRequestDto } from '../dto/update-usuario-request.dto';
 import { SearchUsuarioRequestDto } from '../dto/search-usuario-request.dto';
@@ -77,5 +77,11 @@ export class UsuarioMapper {
       editUsuario.activo = request.activo !== undefined ? request.activo : true;
     }
     return editUsuario;
+  }
+
+  async entity2SimpleDTO(usuario: Usuario): Promise<UsuarioSimpleDTO> {
+    return plainToInstance(UsuarioSimpleDTO, usuario, {
+      excludeExtraneousValues: true,
+    });
   }
 }
