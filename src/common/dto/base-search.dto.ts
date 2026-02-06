@@ -5,8 +5,8 @@ import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class BaseSearchDto {
   static DEFAULT_PAGE_NUMBER = 1;
-  static DEFAULT_PAGE_SIZE = 9999;
-  static MAX_PAGE_SIZE_ALLOWED = 9999;
+  static DEFAULT_PAGE_SIZE = 10;
+  static MAX_PAGE_SIZE_ALLOWED = 30;
 
   @ApiProperty({ required: false })
   @IsString()
