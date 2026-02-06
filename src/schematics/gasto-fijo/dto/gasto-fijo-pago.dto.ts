@@ -16,6 +16,10 @@ export class GastoFijoPagoDTO extends CommonDTO {
   @Type(() => InfoInicialDTO)
   infoInicial: InfoInicialDTO;
 
+  @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes', example: 5000.00 })
+  @Expose()
+  montoPago: number;
+
   @ApiProperty({ description: 'Indica si el gasto fijo ya fue pagado para este mes', example: false })
   @Expose()
   pagado: boolean;

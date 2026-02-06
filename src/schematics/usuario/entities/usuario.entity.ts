@@ -3,6 +3,7 @@ import { Persona } from 'src/schematics/persona/entities/persona.entity';
 import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from 'typeorm';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
+import { ResumenPagoGastoFijo } from 'src/schematics/gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
 
 @Entity('user_01_cab_usuario')
 export class Usuario extends BaseEntity {
@@ -34,6 +35,9 @@ export class Usuario extends BaseEntity {
 
   @OneToMany(() => GastoFijo, (gastosFijos) => gastosFijos.usuario)
   gastosFijos: GastoFijo[];
+
+  @OneToMany(() => ResumenPagoGastoFijo, (resumen) => resumen.usuario)
+  resumenesPagoGastoFijo: ResumenPagoGastoFijo[];
 
   static fromId(id: number) {
     const usuario = new Usuario();

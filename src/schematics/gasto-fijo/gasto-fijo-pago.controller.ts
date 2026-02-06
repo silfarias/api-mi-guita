@@ -55,24 +55,24 @@ export class GastoFijoPagoController {
     return await this.gastoFijoPagoService.search(reqDto, req.user.id);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Crear un gasto fijo pago (registrar pago de un gasto fijo para un mes)' })
-  @ApiBody({
-    type: CreateGastoFijoPagoRequestDto,
-    description: 'Datos del nuevo gasto fijo pago',
-  })
-  @ApiOkResponse({
-    type: GastoFijoPagoDTO,
-    description: 'Gasto fijo pago creado correctamente',
-  })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async create(
-    @Body() createGastoFijoPagoRequestDto: CreateGastoFijoPagoRequestDto,
-    @Request() req: any,
-  ): Promise<GastoFijoPagoDTO> {
-    return await this.gastoFijoPagoService.create(createGastoFijoPagoRequestDto, req.user.id);
-  }
+  // @Post()
+  // @ApiOperation({ summary: 'Crear un gasto fijo pago (registrar pago de un gasto fijo para un mes)' })
+  // @ApiBody({
+  //   type: CreateGastoFijoPagoRequestDto,
+  //   description: 'Datos del nuevo gasto fijo pago',
+  // })
+  // @ApiOkResponse({
+  //   type: GastoFijoPagoDTO,
+  //   description: 'Gasto fijo pago creado correctamente',
+  // })
+  // @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
+  // @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  // async create(
+  //   @Body() createGastoFijoPagoRequestDto: CreateGastoFijoPagoRequestDto,
+  //   @Request() req: any,
+  // ): Promise<GastoFijoPagoDTO> {
+  //   return await this.gastoFijoPagoService.create(createGastoFijoPagoRequestDto, req.user.id);
+  // }
 
   @Get(':id')
   @ApiOperation({ summary: 'Obtener gasto fijo pago por ID' })
@@ -113,17 +113,17 @@ export class GastoFijoPagoController {
     return await this.gastoFijoPagoService.update(id, updateGastoFijoPagoRequestDto, req.user.id);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar gasto fijo pago' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Gasto Fijo Pago' })
-  @ApiOkResponse({ description: 'Gasto fijo pago eliminado correctamente' })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el gasto fijo pago' })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async delete(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ): Promise<any> {
-    return await this.gastoFijoPagoService.remove(id, req.user.id);
-  }
+  // @Delete(':id')
+  // @ApiOperation({ summary: 'Eliminar gasto fijo pago' })
+  // @ApiParam({ name: 'id', required: true, description: 'ID del Gasto Fijo Pago' })
+  // @ApiOkResponse({ description: 'Gasto fijo pago eliminado correctamente' })
+  // @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
+  // @ApiNotFoundResponse({ description: 'No se encontró el gasto fijo pago' })
+  // @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  // async delete(
+  //   @Param('id', ParseIntPipe) id: number,
+  //   @Request() req: any,
+  // ): Promise<any> {
+  //   return await this.gastoFijoPagoService.remove(id, req.user.id);
+  // }
 }

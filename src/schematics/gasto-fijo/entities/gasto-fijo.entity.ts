@@ -11,8 +11,8 @@ export class GastoFijo extends BaseEntity {
     @Column({ name: 'gast01_nombre', type: 'varchar', nullable: false })
     nombre: string;
 
-    @Column({ name: 'gast01_monto', type: 'decimal', precision: 10, scale: 2, nullable: false })
-    monto: number;
+    @Column({ name: 'gast01_monto_fijo', type: 'decimal', precision: 10, scale: 2, nullable: true })
+    montoFijo: number | null;
 
     @ManyToOne(() => Categoria, (categoria) => categoria.gastosFijos)
     @JoinColumn({ name: 'rela01_cat' })

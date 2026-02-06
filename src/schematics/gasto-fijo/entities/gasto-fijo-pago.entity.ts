@@ -14,6 +14,9 @@ export class GastoFijoPago extends BaseEntity {
     @JoinColumn({ name: 'rela01_inf' })
     infoInicial: InfoInicial;
 
+    @Column({ name: 'gast02_monto_pago', type: 'decimal', precision: 10, scale: 2, nullable: false })
+    montoPago: number;
+
     @Column({ name: 'gast02_pagado', type: 'boolean', default: false })
     pagado: boolean;
 

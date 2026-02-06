@@ -16,4 +16,10 @@ export class SearchGastoFijoRequestDto extends BaseSearchDto {
   @Type(() => Number)
   @IsNumber()
   categoriaId?: number;
+
+  @ApiProperty({ description: 'ID de la información inicial', type: Number, required: false })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  infoInicialId?: number;
 }

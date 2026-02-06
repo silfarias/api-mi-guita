@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString, IsBoolean, Min } from 'class-validator';
+import { IsOptional, IsNumber, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateGastoFijoRequestDto {
@@ -19,13 +19,11 @@ export class UpdateGastoFijoRequestDto {
     type: Number, 
     nullable: true, 
     example: 5000.00,
-    minimum: 0.01
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0.01)
-  monto?: number;
+  montoFijo?: number;
 
   @ApiProperty({ 
     description: 'ID de la categoría del gasto fijo', 

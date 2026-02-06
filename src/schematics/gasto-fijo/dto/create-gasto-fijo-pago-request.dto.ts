@@ -27,6 +27,18 @@ export class CreateGastoFijoPagoRequestDto {
   infoInicialId: number;
 
   @ApiProperty({ 
+    description: 'Monto pagado del gasto fijo para este mes', 
+    type: Number, 
+    nullable: true, 
+    example: 5000.00,
+    minimum: 0.01
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  montoPago?: number;
+
+  @ApiProperty({ 
     description: 'Indica si el gasto fijo ya fue pagado', 
     type: Boolean, 
     nullable: true, 

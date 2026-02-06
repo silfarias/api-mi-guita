@@ -28,7 +28,7 @@ import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
-import { GastoFijoDTO } from './dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -54,6 +54,21 @@ export class GastoFijoController {
   ): Promise<PageDto<GastoFijoDTO>> {
     const reqDto = plainToInstance(SearchGastoFijoRequestDto, request);
     return await this.gastoFijoService.search(reqDto, req.user.id);
+  }
+
+  @Get('mis-gastos-fijos')
+  @ApiOperation({ summary: 'Buscar gastos fijos por usuario autenticado' })
+  @ApiOkResponse({ 
+    type: MisGastosFijosResponseDTO, 
+    description: 'Gastos fijos del usuario autenticado agrupados con usuario en cabecera' 
+  })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async getMisGastosFijos(
+    @Query() request: SearchGastoFijoRequestDto,
+    @Request() req: any,
+  ): Promise<MisGastosFijosResponseDTO> {
+    const reqDto = plainToInstance(SearchGastoFijoRequestDto, request);
+    return await this.gastoFijoService.getMisGastosFijos(reqDto, req.user.id);
   }
 
   @Post()

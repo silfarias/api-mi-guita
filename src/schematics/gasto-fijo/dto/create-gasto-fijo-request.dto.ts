@@ -7,7 +7,7 @@ export class CreateGastoFijoRequestDto {
   @ApiProperty({ 
     description: 'Nombre del gasto fijo', 
     type: String, 
-    nullable: false, 
+    required: true, 
     example: 'Internet/WiFi' 
   })
   @IsNotEmpty()
@@ -17,20 +17,18 @@ export class CreateGastoFijoRequestDto {
   @ApiProperty({ 
     description: 'Monto del gasto fijo', 
     type: Number, 
-    nullable: false, 
-    example: 5000.00,
-    minimum: 0.01
+    required: false, 
+    example: 5000.00
   })
-  @IsNotEmpty()
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0.01)
-  monto: number;
+  montoFijo?: number;
 
   @ApiProperty({ 
     description: 'ID de la categoría del gasto fijo', 
     type: Number, 
-    nullable: false, 
+    required: true, 
     example: 1 
   })
   @IsNotEmpty()

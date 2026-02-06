@@ -15,8 +15,10 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     const queryBuilder: SelectQueryBuilder<GastoFijo> = this.createQueryBuilder(
       'gastoFijo',
     )
-      .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
+      .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
+      .leftJoinAndSelect('gastoFijo.gastosFijosPagos', 'gastosFijosPagos')
+      .leftJoinAndSelect('gastosFijosPagos.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
     if (request.id) {
@@ -25,6 +27,10 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
 
     if (request.categoriaId) {
       queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
+    }
+
+    if (request.infoInicialId) {
+      queryBuilder.andWhere('infoInicial.id = :infoInicialId', { infoInicialId: request.infoInicialId });
     }
 
     queryBuilder.orderBy('gastoFijo.nombre', 'ASC');

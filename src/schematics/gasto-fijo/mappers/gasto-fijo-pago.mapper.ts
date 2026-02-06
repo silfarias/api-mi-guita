@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { GastoFijoPago } from '../entities/gasto-fijo-pago.entity';
 import { GastoFijoPagoDTO } from '../dto/gasto-fijo-pago.dto';
@@ -14,6 +14,7 @@ import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.e
 @Injectable()
 export class GastoFijoPagoMapper {
   constructor(
+    @Inject(forwardRef(() => GastoFijoMapper))
     private gastoFijoMapper: GastoFijoMapper,
     private infoInicialMapper: InfoInicialMapper,
   ) {}
@@ -57,6 +58,10 @@ export class GastoFijoPagoMapper {
     const newGastoFijoPago: GastoFijoPago = new GastoFijoPago();
     newGastoFijoPago.gastoFijo = gastoFijo;
     newGastoFijoPago.infoInicial = infoInicial;
+    // Usar montoPago del request si se proporciona, sino usar montoFijo si está disponible, sino será 0
+    newGastoFijoPago.montoPago = request.montoPago !== undefined 
+      ? request.montoPago 
+      : (gastoFijo.montoFijo || 0);
     newGastoFijoPago.pagado = request.pagado !== undefined ? request.pagado : false;
     return newGastoFijoPago;
   }
@@ -65,6 +70,9 @@ export class GastoFijoPagoMapper {
     gastoFijoPago: GastoFijoPago,
     request: UpdateGastoFijoPagoRequestDto,
   ): GastoFijoPago {
+    if (request.montoPago !== undefined) {
+      gastoFijoPago.montoPago = request.montoPago;
+    }
     if (request.pagado !== undefined) {
       gastoFijoPago.pagado = request.pagado;
     }

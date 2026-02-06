@@ -1,15 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { CreateGastoFijoRequestDto } from './dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
-import { GastoFijoDTO } from './dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
 import { PageDto } from 'src/common/dto/page.dto';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { CategoriaRepository } from '../categoria/repository/categoria.repository';
 import { UsuarioRepository } from '../usuario/repository/usuario.repository';
+import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
+import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
+import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
+import { MesEnum } from 'src/common/enums/mes-enum';
 
 @Injectable()
 export class GastoFijoService {
@@ -18,6 +22,10 @@ export class GastoFijoService {
     private gastoFijoRepository: GastoFijoRepository,
     private categoriaRepository: CategoriaRepository,
     private usuarioRepository: UsuarioRepository,
+    @Inject(forwardRef(() => InfoInicialRepository))
+    private infoInicialRepository: InfoInicialRepository,
+    @Inject(forwardRef(() => GastoFijoPagoRepository))
+    private gastoFijoPagoRepository: GastoFijoPagoRepository,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<GastoFijoDTO> {
@@ -48,6 +56,24 @@ export class GastoFijoService {
   async search(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<PageDto<GastoFijoDTO>> {
     const gastoFijoPage = await this.gastoFijoRepository.search(request, usuarioId);
     return this.gastoFijoMapper.page2Dto(request, gastoFijoPage);
+  }
+
+  async getMisGastosFijos(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<MisGastosFijosResponseDTO> {
+    // Obtener el usuario
+    const usuario = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
+    });
+
+    if (!usuario) {
+      throw new NotFoundException({
+        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+        message: 'Usuario no encontrado',
+        details: JSON.stringify({ usuarioId }),
+      });
+    }
+
+    const gastoFijoPage = await this.gastoFijoRepository.search(request, usuarioId);
+    return this.gastoFijoMapper.page2MisGastosFijosResponseDto(request, gastoFijoPage, usuario);
   }
 
   async create(request: CreateGastoFijoRequestDto, usuarioId: number): Promise<GastoFijoDTO> {
@@ -82,6 +108,9 @@ export class GastoFijoService {
       const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(request, categoria);
       newGastoFijo.usuario = usuario;
       const gastoFijoSaved = await this.gastoFijoRepository.save(newGastoFijo);
+
+      // Crear automáticamente el GastoFijoPago para el mes actual si existe InfoInicial
+      await this.crearGastoFijoPagoParaMesActual(gastoFijoSaved.id, usuarioId);
 
       // Buscar el gasto fijo guardado con relaciones
       const searchGastoFijo = await this.gastoFijoRepository.findOne({
@@ -269,6 +298,11 @@ export class GastoFijoService {
       // Guardar todos los gastos fijos
       const gastosFijosGuardados = await this.gastoFijoRepository.save(nuevosGastosFijos);
 
+      // Crear automáticamente los GastoFijoPago para el mes actual si existe InfoInicial
+      for (const gastoFijoGuardado of gastosFijosGuardados) {
+        await this.crearGastoFijoPagoParaMesActual(gastoFijoGuardado.id, usuarioId);
+      }
+
       // Obtener los IDs de los gastos fijos guardados
       const ids = gastosFijosGuardados.map(gf => gf.id);
 
@@ -293,6 +327,85 @@ export class GastoFijoService {
         message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
         details: error.message,
       });
+    }
+  }
+
+  /**
+   * Obtiene el mes actual en formato MesEnum
+   */
+  private obtenerMesActual(): MesEnum {
+    const meses: MesEnum[] = [
+      MesEnum.ENERO,
+      MesEnum.FEBRERO,
+      MesEnum.MARZO,
+      MesEnum.ABRIL,
+      MesEnum.MAYO,
+      MesEnum.JUNIO,
+      MesEnum.JULIO,
+      MesEnum.AGOSTO,
+      MesEnum.SEPTIEMBRE,
+      MesEnum.OCTUBRE,
+      MesEnum.NOVIEMBRE,
+      MesEnum.DICIEMBRE,
+    ];
+    const fechaActual = new Date();
+    return meses[fechaActual.getMonth()];
+  }
+
+  /**
+   * Crea automáticamente un GastoFijoPago para el mes actual si existe InfoInicial
+   */
+  private async crearGastoFijoPagoParaMesActual(gastoFijoId: number, usuarioId: number): Promise<void> {
+    try {
+      const fechaActual = new Date();
+      const anioActual = fechaActual.getFullYear();
+      const mesActual = this.obtenerMesActual();
+
+      // Buscar la InfoInicial del mes actual para el usuario
+      const infoInicialActual = await this.infoInicialRepository.findByUsuarioAndMes(
+        usuarioId,
+        anioActual,
+        mesActual as string,
+      );
+
+      // Si no existe InfoInicial para el mes actual, no crear el pago (no es un error)
+      if (!infoInicialActual) {
+        return;
+      }
+
+      // Verificar si ya existe un pago para este gasto fijo y esta InfoInicial
+      const pagoExistente = await this.gastoFijoPagoRepository
+        .createQueryBuilder('gastoFijoPago')
+        .where('gastoFijoPago.gastoFijo = :gastoFijoId', { gastoFijoId })
+        .andWhere('gastoFijoPago.infoInicial = :infoInicialId', { infoInicialId: infoInicialActual.id })
+        .getOne();
+
+      if (pagoExistente) {
+        // Ya existe un pago para este mes, no crear otro
+        return;
+      }
+
+      // Obtener el gasto fijo con su montoFijo
+      const gastoFijo = await this.gastoFijoRepository.findOne({
+        where: { id: gastoFijoId },
+      });
+
+      if (!gastoFijo) {
+        return;
+      }
+
+      // Crear el GastoFijoPago
+      const nuevoPago = new GastoFijoPago();
+      nuevoPago.gastoFijo = gastoFijo;
+      nuevoPago.infoInicial = infoInicialActual;
+      nuevoPago.montoPago = gastoFijo.montoFijo || 0;
+      nuevoPago.pagado = false;
+
+      await this.gastoFijoPagoRepository.save(nuevoPago);
+    } catch (error) {
+      // Si hay un error al crear el pago automático, lo registramos pero no fallamos la creación del gasto fijo
+      console.error('Error al crear pago automático de gasto fijo para el mes actual:', error);
+      // No lanzamos el error para no interrumpir el flujo principal
     }
   }
 }

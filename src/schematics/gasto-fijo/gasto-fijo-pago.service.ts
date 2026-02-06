@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { CreateGastoFijoPagoRequestDto } from './dto/create-gasto-fijo-pago-request.dto';
 import { UpdateGastoFijoPagoRequestDto } from './dto/update-gasto-fijo-pago-request.dto';
 import { SearchGastoFijoPagoRequestDto } from './dto/search-gasto-fijo-pago-request.dto';
@@ -9,6 +9,7 @@ import { PageDto } from 'src/common/dto/page.dto';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
+import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
 
 @Injectable()
 export class GastoFijoPagoService {
@@ -17,6 +18,8 @@ export class GastoFijoPagoService {
     private gastoFijoPagoRepository: GastoFijoPagoRepository,
     private gastoFijoRepository: GastoFijoRepository,
     private infoInicialRepository: InfoInicialRepository,
+    @Inject(forwardRef(() => ResumenPagoGastoFijoService))
+    private resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<GastoFijoPagoDTO> {
@@ -110,9 +113,12 @@ export class GastoFijoPagoService {
         });
       }
 
-      // Crear el gasto fijo pago
+      // Crear el gasto fijo pago (el mapper maneja el montoPago automáticamente)
       const newGastoFijoPago = this.gastoFijoPagoMapper.createDTO2Entity(request, gastoFijo, infoInicial);
       const gastoFijoPagoSaved = await this.gastoFijoPagoRepository.save(newGastoFijoPago);
+
+      // Recalcular el resumen de pagos de gastos fijos automáticamente
+      await this.resumenPagoGastoFijoService.recalcularResumen(infoInicial.id);
 
       // Buscar el gasto fijo pago guardado con relaciones
       const searchGastoFijoPago = await this.gastoFijoPagoRepository.findOne({
@@ -169,9 +175,27 @@ export class GastoFijoPagoService {
         });
       }
 
+      // Si se está marcando como pagado pero no se proporciona montoPago, usar el montoFijo si está disponible
+      if (request.pagado === true && request.montoPago === undefined) {
+        if (gastoFijoPago.gastoFijo.montoFijo && gastoFijoPago.montoPago === 0) {
+          // Si tiene montoFijo y el montoPago actual es 0, usar montoFijo
+          request.montoPago = gastoFijoPago.gastoFijo.montoFijo;
+        } else if (gastoFijoPago.montoPago === 0) {
+          // Si no tiene montoFijo y el montoPago es 0, requerir que se proporcione
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'Debe proporcionar el monto pagado antes de marcar como pagado',
+            details: 'El campo montoPago es requerido cuando se marca como pagado y el gasto fijo no tiene monto fijo',
+          });
+        }
+      }
+
       // Actualizar el gasto fijo pago
       const updateGastoFijoPago = this.gastoFijoPagoMapper.updateDTO2Entity(gastoFijoPago, request);
       await this.gastoFijoPagoRepository.save(updateGastoFijoPago);
+
+      // Recalcular el resumen de pagos de gastos fijos automáticamente
+      await this.resumenPagoGastoFijoService.recalcularResumen(gastoFijoPago.infoInicial.id);
 
       // Buscar el gasto fijo pago actualizado
       const searchGastoFijoPago = await this.gastoFijoPagoRepository.findOne({

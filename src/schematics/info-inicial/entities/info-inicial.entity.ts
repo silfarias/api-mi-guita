@@ -2,9 +2,10 @@ import { MesEnum } from 'src/common/enums/mes-enum';
 import { BaseEntity } from 'src/common/models/baseentity';
 import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
 import { Usuario } from 'src/schematics/usuario/entities/usuario.entity';
-import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, OneToOne } from 'typeorm';
 import { InfoInicialMedioPago } from './info-inicial-mediopago.entity';
 import { GastoFijoPago } from 'src/schematics/gasto-fijo/entities/gasto-fijo-pago.entity';
+import { ResumenPagoGastoFijo } from 'src/schematics/gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
 
 @Entity('inf_01_cab_info_inicial')
 export class InfoInicial extends BaseEntity {
@@ -27,6 +28,9 @@ export class InfoInicial extends BaseEntity {
 
     @OneToMany(() => GastoFijoPago, (gastoFijoPago) => gastoFijoPago.infoInicial)
     gastosFijosPagos: GastoFijoPago[];
+
+    @OneToOne(() => ResumenPagoGastoFijo, (resumen) => resumen.infoInicial, { nullable: true })
+    resumenPagoGastoFijo?: ResumenPagoGastoFijo;
 
     static fromId(id: number) {
         const infoInicial = new InfoInicial();
