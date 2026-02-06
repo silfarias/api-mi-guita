@@ -9,8 +9,8 @@ export class CreateGastoFijoBulkRequestDto {
     type: [CreateGastoFijoRequestDto], 
     nullable: false,
     example: [
-      { nombre: 'Internet/WiFi', monto: 5000.00, categoriaId: 1 },
-      { nombre: 'Luz', monto: 3000.00, categoriaId: 2 }
+      { nombre: 'Internet/WiFi', montoFijo: 5000.00, categoriaId: 1 },
+      { nombre: 'Luz', montoFijo: 3000.00, categoriaId: 2 }
     ]
   })
   @IsArray()
