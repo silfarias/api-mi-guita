@@ -104,6 +104,21 @@ export class GastoFijoService {
         });
       }
 
+      // Validar que no exista otro gasto fijo con el mismo nombre para este usuario
+      const gastoFijoExistente = await this.gastoFijoRepository
+        .createQueryBuilder('gastoFijo')
+        .where('gastoFijo.usuario = :usuarioId', { usuarioId })
+        .andWhere('LOWER(gastoFijo.nombre) = LOWER(:nombre)', { nombre: request.nombre })
+        .getOne();
+
+      if (gastoFijoExistente) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'Ya existe un gasto fijo con ese nombre para este usuario',
+          details: JSON.stringify({ nombre: request.nombre }),
+        });
+      }
+
       // Crear el gasto fijo
       const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(request, categoria);
       newGastoFijo.usuario = usuario;
@@ -182,6 +197,24 @@ export class GastoFijoService {
           });
         }
         categoria = nuevaCategoria;
+      }
+
+      // Validar que si se cambia el nombre, no exista otro gasto fijo con ese nombre para este usuario
+      if (request.nombre !== undefined && request.nombre.toLowerCase() !== gastoFijo.nombre.toLowerCase()) {
+        const gastoFijoExistente = await this.gastoFijoRepository
+          .createQueryBuilder('gastoFijo')
+          .where('gastoFijo.usuario = :usuarioId', { usuarioId })
+          .andWhere('LOWER(gastoFijo.nombre) = LOWER(:nombre)', { nombre: request.nombre })
+          .andWhere('gastoFijo.id != :idActual', { idActual: id })
+          .getOne();
+
+        if (gastoFijoExistente) {
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'Ya existe otro gasto fijo con ese nombre para este usuario',
+            details: JSON.stringify({ nombre: request.nombre }),
+          });
+        }
       }
 
       // Actualizar el gasto fijo
@@ -279,6 +312,35 @@ export class GastoFijoService {
 
       // Crear un mapa de categorías por ID para acceso rápido
       const categoriasMap = new Map(categorias.map(c => [c.id, c]));
+
+      // Validar que no haya nombres duplicados en el array de la request
+      const nombresEnRequest = request.gastosFijos.map(gf => gf.nombre.toLowerCase());
+      const nombresUnicos = new Set(nombresEnRequest);
+      if (nombresEnRequest.length !== nombresUnicos.size) {
+        const nombresDuplicados = nombresEnRequest.filter((nombre, index) => nombresEnRequest.indexOf(nombre) !== index);
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'No se pueden crear gastos fijos con nombres duplicados en la misma solicitud',
+          details: JSON.stringify({ nombresDuplicados: [...new Set(nombresDuplicados)] }),
+        });
+      }
+
+      // Validar que no existan gastos fijos con esos nombres para este usuario
+      const nombresParaValidar = request.gastosFijos.map(gf => gf.nombre.toLowerCase());
+      const gastosFijosExistentes = await this.gastoFijoRepository
+        .createQueryBuilder('gastoFijo')
+        .where('gastoFijo.usuario = :usuarioId', { usuarioId })
+        .andWhere('LOWER(gastoFijo.nombre) IN (:...nombres)', { nombres: nombresParaValidar })
+        .getMany();
+
+      if (gastosFijosExistentes.length > 0) {
+        const nombresExistentes = gastosFijosExistentes.map(gf => gf.nombre);
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'Uno o más gastos fijos ya existen con esos nombres para este usuario',
+          details: JSON.stringify({ nombresExistentes }),
+        });
+      }
 
       // Crear los gastos fijos
       const nuevosGastosFijos = request.gastosFijos.map(gastoFijoDto => {
