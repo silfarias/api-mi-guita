@@ -1,4 +1,5 @@
 import { BaseEntity } from 'src/common/models/baseentity';
+import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
 import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
 
@@ -22,6 +23,9 @@ export class Categoria extends BaseEntity {
 
   @OneToMany(() => Movimiento, (movimiento) => movimiento.categoria)
   movimientos: Movimiento[];
+
+  @OneToMany(() => GastoFijo, (gastosFijos) => gastosFijos.categoria)
+  gastosFijos: GastoFijo[];
 
   static fromId(id: number) {
     const categoria = new Categoria();

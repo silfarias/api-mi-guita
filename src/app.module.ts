@@ -13,6 +13,7 @@ import { CategoriaModule } from './schematics/categoria/categoria.module';
 import { MedioPagoModule } from './schematics/medio-pago/medio-pago.module';
 import { ReportesModule } from './schematics/reportes/reportes.module';
 import { TransferenciaModule } from './schematics/transferencia/transferencia.module';
+import { GastoFijoModule } from './schematics/gasto-fijo/gasto-fijo.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TransferenciaModule } from './schematics/transferencia/transferencia.mo
     MedioPagoModule,
     ReportesModule,
     TransferenciaModule,
+    GastoFijoModule,
   ],
   controllers: [],
   providers: [],

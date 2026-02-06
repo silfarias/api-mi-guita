@@ -25,11 +25,11 @@ export class Movimiento extends BaseEntity {
     monto: number;
 
     @ManyToOne(() => MedioPago, (medioPago) => medioPago.movimientos)
-    @JoinColumn({ name: 'med01_id' })
+    @JoinColumn({ name: 'rela01_med' })
     medioPago: MedioPago;
 
     @ManyToOne(() => InfoInicial, (infoInicial) => infoInicial.movimientos, { nullable: false })
-    @JoinColumn({ name: 'inf01_id' })
+    @JoinColumn({ name: 'rela01_inf' })
     infoInicial: InfoInicial;
 
     static fromId(id: number) {

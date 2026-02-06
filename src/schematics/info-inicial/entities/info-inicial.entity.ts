@@ -4,12 +4,13 @@ import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity
 import { Usuario } from 'src/schematics/usuario/entities/usuario.entity';
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
 import { InfoInicialMedioPago } from './info-inicial-mediopago.entity';
+import { GastoFijoPago } from 'src/schematics/gasto-fijo/entities/gasto-fijo-pago.entity';
 
 @Entity('inf_01_cab_info_inicial')
 export class InfoInicial extends BaseEntity {
 
     @ManyToOne(() => Usuario, (usuario) => usuario.infoIniciales, { nullable: false })
-    @JoinColumn({ name: 'user01_id' })
+    @JoinColumn({ name: 'rela01_user' })
     usuario: Usuario;
 
     @Column({ name: 'inf01_anio', type: 'int', nullable: false })
@@ -23,6 +24,9 @@ export class InfoInicial extends BaseEntity {
 
     @OneToMany(() => InfoInicialMedioPago, (infoInicialMedioPago) => infoInicialMedioPago.infoInicial)
     infoInicialMedioPagos: InfoInicialMedioPago[];
+
+    @OneToMany(() => GastoFijoPago, (gastoFijoPago) => gastoFijoPago.infoInicial)
+    gastosFijosPagos: GastoFijoPago[];
 
     static fromId(id: number) {
         const infoInicial = new InfoInicial();
