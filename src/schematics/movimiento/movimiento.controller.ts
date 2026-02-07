@@ -27,7 +27,7 @@ import { CreateMovimientoRequestDto } from './dto/create-movimiento-request.dto'
 import { UpdateMovimientoRequestDto } from './dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from './dto/search-movimiento-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
-import { MovimientoDTO, MovimientoAgrupadoDTO } from './dto/movimiento.dto';
+import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO } from './dto/movimiento.dto';
 import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -76,7 +76,7 @@ export class MovimientoController {
     description: 'Datos del nuevo movimiento',
   })
   @ApiOkResponse({
-    type: MovimientoDTO,
+    type: MovimientoSimpleDTO,
     description: 'Movimiento creado correctamente',
   })
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
@@ -84,7 +84,7 @@ export class MovimientoController {
   async create(
     @Body() createMovimientoRequestDto: CreateMovimientoRequestDto,
     @Request() req: any,
-  ): Promise<MovimientoDTO> {
+  ): Promise<MovimientoSimpleDTO> {
     return await this.movimientoService.create(createMovimientoRequestDto, req.user.id);
   }
 
@@ -110,7 +110,7 @@ export class MovimientoController {
     description: 'Datos actualizados del movimiento',
   })
   @ApiOkResponse({
-    type: MovimientoDTO,
+    type: MovimientoSimpleDTO,
     description: 'Movimiento actualizado correctamente',
   })
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
@@ -120,7 +120,7 @@ export class MovimientoController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateMovimientoRequestDto: UpdateMovimientoRequestDto,
     @Request() req: any,
-  ): Promise<MovimientoDTO> {
+  ): Promise<MovimientoSimpleDTO> {
     return await this.movimientoService.update(id, updateMovimientoRequestDto, req.user.id);
   }
 

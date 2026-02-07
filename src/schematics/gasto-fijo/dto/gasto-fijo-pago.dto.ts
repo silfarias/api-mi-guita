@@ -24,3 +24,42 @@ export class GastoFijoPagoDTO extends CommonDTO {
   @Expose()
   pagado: boolean;
 }
+
+export class PagoSimpleDTO {
+
+  @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes' })
+  @Expose()
+  montoPago: number;
+
+  @ApiProperty({ description: 'Indica si el gasto fijo ya fue pagado para este mes' })
+  @Expose()
+  pagado: boolean;
+
+}
+
+export class Pagos {
+
+  @ApiProperty({ description: 'Gasto fijo asociado', type: () => GastoFijoDTO })
+  @Expose()
+  @Type(() => GastoFijoDTO)
+  gastoFijo: GastoFijoDTO;
+
+  @ApiProperty({ description: 'Pago del gasto fijo para este mes', type: () => PagoSimpleDTO })
+  @Expose()
+  @Type(() => PagoSimpleDTO)
+  pago: PagoSimpleDTO
+}
+
+export class PagosGastoFijoDTO {
+
+  @ApiProperty({ description: 'Información inicial (mes/año) asociada', type: () => InfoInicialDTO })
+  @Expose()
+  @Type(() => InfoInicialDTO)
+  infoInicial: InfoInicialDTO;
+
+  @ApiProperty({ description: 'Pagos del gasto fijo para este mes', type: () => [Pagos] })
+  @Expose()
+  @Type(() => Pagos)
+  pagos: Pagos[]
+
+}

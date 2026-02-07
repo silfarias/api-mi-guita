@@ -6,17 +6,6 @@ import { Type } from 'class-transformer';
 export class UpdateMovimientoRequestDto {
 
   @ApiProperty({ 
-    description: 'ID de la información inicial', 
-    type: Number, 
-    nullable: true, 
-    example: 1 
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  infoInicialId?: number;
-
-  @ApiProperty({ 
     description: 'Fecha del movimiento', 
     type: Date, 
     nullable: true

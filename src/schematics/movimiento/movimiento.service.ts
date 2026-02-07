@@ -37,7 +37,7 @@ export class MovimientoService {
     return this.movimientoMapper.page2AgrupadoDto(request, movimientoPage);
   }
 
-  async create(request: CreateMovimientoRequestDto, usuarioId: number): Promise<MovimientoDTO> {
+  async create(request: CreateMovimientoRequestDto, usuarioId: number): Promise<MovimientoSimpleDTO> {
     try {
       // Validar que la información inicial existe y pertenece al usuario
       const infoInicial = await this.infoInicialRepository.findOne({
@@ -92,21 +92,8 @@ export class MovimientoService {
       const newMovimiento = this.movimientoMapper.createDTO2Entity(request, infoInicial, categoria, medioPago);
       const movimientoSaved = await this.movimientoRepository.save(newMovimiento);
 
-      // Buscar el movimiento guardado con relaciones
-      const searchMovimiento = await this.movimientoRepository.findOne({
-        where: { id: movimientoSaved.id },
-        relations: ['infoInicial', 'infoInicial.usuario', 'categoria', 'medioPago'],
-      });
+      return await this.movimientoMapper.entity2SimpleDTO(movimientoSaved);
 
-      if (!searchMovimiento) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id: movimientoSaved.id }),
-        });
-      }
-
-      return this.movimientoMapper.entity2DTO(searchMovimiento);
     } catch (error) {
       if (error instanceof BadRequestException || error instanceof NotFoundException) {
         throw error;
@@ -123,7 +110,7 @@ export class MovimientoService {
     id: number,
     request: UpdateMovimientoRequestDto,
     usuarioId: number,
-  ): Promise<MovimientoDTO> {
+  ): Promise<MovimientoSimpleDTO> {
     try {
       // Verificar que el movimiento existe y pertenece al usuario
       const movimiento = await this.movimientoRepository.findOne({
@@ -145,32 +132,6 @@ export class MovimientoService {
           message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
           details: 'No tienes permiso para modificar este movimiento',
         });
-      }
-
-      // Si se está cambiando la información inicial, validar que pertenece al usuario
-      if (request.infoInicialId && request.infoInicialId !== movimiento.infoInicial.id) {
-        const nuevaInfoInicial = await this.infoInicialRepository.findOne({
-          where: { id: request.infoInicialId },
-          relations: ['usuario'],
-        });
-
-        if (!nuevaInfoInicial) {
-          throw new NotFoundException({
-            code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-            message: 'Información inicial no encontrada',
-            details: JSON.stringify({ infoInicialId: request.infoInicialId }),
-          });
-        }
-
-        if (nuevaInfoInicial.usuario.id !== usuarioId) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'No tienes permiso para mover este movimiento a esa información inicial',
-            details: JSON.stringify({ infoInicialId: request.infoInicialId }),
-          });
-        }
-
-        movimiento.infoInicial = nuevaInfoInicial;
       }
 
       // Validar y cargar categoría si se está actualizando
@@ -211,21 +172,7 @@ export class MovimientoService {
       const updateMovimiento = this.movimientoMapper.updateDTO2Entity(movimiento, request, categoria, medioPago);
       await this.movimientoRepository.save(updateMovimiento);
 
-      // Buscar el movimiento actualizado
-      const searchMovimiento = await this.movimientoRepository.findOne({
-        where: { id: id },
-        relations: ['infoInicial', 'infoInicial.usuario', 'categoria', 'medioPago'],
-      });
-
-      if (!searchMovimiento) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      return this.movimientoMapper.entity2DTO(searchMovimiento);
+      return this.movimientoMapper.entity2SimpleDTO(movimiento);
     } catch (error) {
       if (
         error instanceof NotFoundException ||

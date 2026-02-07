@@ -13,7 +13,7 @@ export class GastoFijoDTO extends CommonDTO {
 
   @ApiProperty({ description: 'Monto del gasto fijo', example: 5000.00 })
   @Expose()
-  monto: number;
+  montoFijo: number;
 
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()
@@ -35,7 +35,7 @@ export class MisGastosFijosDTO extends CommonDTO {
 
   @ApiProperty({ description: 'Monto del gasto fijo', example: 5000.00 })
   @Expose()
-  monto: number;
+  montoFijo: number;
 
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()
@@ -80,10 +80,10 @@ export class MisGastosFijosResponseDTO {
   @Type(() => UsuarioDTO)
   usuario: UsuarioDTO;
 
-  @ApiProperty({ description: 'Gastos fijos del usuario', type: () => [GastoFijoConPagosDTO] })
+  @ApiProperty({ description: 'Gastos fijos del usuario', type: () => [GastoFijoDTO] })
   @Expose()
-  @Type(() => GastoFijoConPagosDTO)
-  gastosFijos: GastoFijoConPagosDTO[];
+  @Type(() => GastoFijoDTO)
+  gastosFijos: GastoFijoDTO[];
 
   @ApiProperty({ description: 'Metadatos de paginación', type: () => PageMetadataDto })
   @Expose()

@@ -8,7 +8,6 @@ import { InfoInicialMapper } from './mappers/info-inicial.mapper';
 import { InfoInicialRepository } from './repository/info-inicial.repository';
 import { InfoInicialMedioPagoRepository } from './repository/info-inicial-mediopago.repository';
 import { PageDto } from 'src/common/dto/page.dto';
-import { InfoInicial } from './entities/info-inicial.entity';
 import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { UsuarioRepository } from '../usuario/repository/usuario.repository';
@@ -16,26 +15,24 @@ import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.reposit
 import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
 import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
-import { GastoFijoRepository } from '../gasto-fijo/repository/gasto-fijo.repository';
-import { GastoFijoPagoRepository } from '../gasto-fijo/repository/gasto-fijo-pago.repository';
-import { GastoFijoPago } from '../gasto-fijo/entities/gasto-fijo-pago.entity';
 import { ResumenPagoGastoFijoService } from '../gasto-fijo/resumen-pago-gasto-fijo.service';
+import { GastoFijoPagoService } from '../gasto-fijo/gasto-fijo-pago.service';
 
 @Injectable()
 export class InfoInicialService {
   constructor(
     private infoInicialMapper: InfoInicialMapper,
     private infoInicialRepository: InfoInicialRepository,
+
     private infoInicialMedioPagoRepository: InfoInicialMedioPagoRepository,
+
     private usuarioRepository: UsuarioRepository,
+    private medioPagoMapper: MedioPagoMapper,
     private medioPagoRepository: MedioPagoRepository,
     private movimientoRepository: MovimientoRepository,
-    private medioPagoMapper: MedioPagoMapper,
-    @Inject(forwardRef(() => GastoFijoRepository))
-    private gastoFijoRepository: GastoFijoRepository,
-    @Inject(forwardRef(() => GastoFijoPagoRepository))
-    private gastoFijoPagoRepository: GastoFijoPagoRepository,
-    @Inject(forwardRef(() => ResumenPagoGastoFijoService))
+
+    private gastoFijoPagoService: GastoFijoPagoService,
+
     private resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
   ) {}
 
@@ -58,11 +55,9 @@ export class InfoInicialService {
 
   async create(request: CreateInfoInicialRequestDto, usuarioId: number): Promise<InfoInicialDTO> {
     try {
-      // Validar que el usuario existe
       const usuario = await this.usuarioRepository.findOne({
         where: { id: usuarioId },
       });
-
       if (!usuario) {
         throw new NotFoundException({
           code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
@@ -70,14 +65,11 @@ export class InfoInicialService {
           details: JSON.stringify({ usuarioId }),
         });
       }
-
-      // Validar que no exista ya una info inicial para el mismo usuario, año y mes
       const existingInfo = await this.infoInicialRepository.findByUsuarioAndMes(
         usuarioId,
         request.anio,
         request.mes,
       );
-
       if (existingInfo) {
         throw new BadRequestException({
           code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
@@ -85,14 +77,11 @@ export class InfoInicialService {
           details: JSON.stringify({ usuarioId, anio: request.anio, mes: request.mes }),
         });
       }
-
-      // Validar que todos los medios de pago existen
       const medioPagoIds = request.mediosPago.map(mp => mp.medioPagoId);
       const mediosPagoExistentes = await this.medioPagoRepository
         .createQueryBuilder('medioPago')
         .where('medioPago.id IN (:...ids)', { ids: medioPagoIds })
         .getMany();
-      
       if (mediosPagoExistentes.length !== medioPagoIds.length) {
         throw new BadRequestException({
           code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
@@ -100,8 +89,6 @@ export class InfoInicialService {
           details: JSON.stringify({ medioPagoIds }),
         });
       }
-
-      // Validar que no haya medios de pago duplicados
       const medioPagoIdsUnicos = new Set(medioPagoIds);
       if (medioPagoIdsUnicos.size !== medioPagoIds.length) {
         throw new BadRequestException({
@@ -111,11 +98,10 @@ export class InfoInicialService {
         });
       }
 
-      // Crear la información inicial
+
       const newInfoInicial = this.infoInicialMapper.createDTO2Entity(request, usuario);
       const infoInicialSaved = await this.infoInicialRepository.save(newInfoInicial);
 
-      // Crear los registros de InfoInicialMedioPago
       const infoInicialMedioPagos: InfoInicialMedioPago[] = request.mediosPago.map(mp => {
         const infoMedioPago = new InfoInicialMedioPago();
         infoMedioPago.infoInicial = infoInicialSaved;
@@ -126,13 +112,10 @@ export class InfoInicialService {
 
       await this.infoInicialMedioPagoRepository.save(infoInicialMedioPagos);
 
-      // Crear automáticamente los registros de GastoFijoPago para todos los gastos fijos del usuario
-      await this.crearGastosFijosPagosAutomaticos(infoInicialSaved, usuarioId);
+      await this.gastoFijoPagoService.crearGastosFijosPagosAutomaticos(infoInicialSaved, usuarioId);
 
-      // Crear e inicializar el resumen de pagos de gastos fijos
       await this.resumenPagoGastoFijoService.crearOInicializarResumen(infoInicialSaved.id, usuarioId);
 
-      // Buscar la información inicial guardada con relaciones
       const searchInfoInicial = await this.infoInicialRepository.findOne({
         where: { id: infoInicialSaved.id },
         relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
@@ -406,57 +389,4 @@ export class InfoInicialService {
     };
   }
 
-  /**
-   * Crea automáticamente los registros de GastoFijoPago para todos los gastos fijos activos del usuario
-   * cuando se crea una nueva InfoInicial (nuevo mes/año)
-   */
-  private async crearGastosFijosPagosAutomaticos(infoInicial: InfoInicial, usuarioId: number): Promise<void> {
-    try {
-      // Buscar todos los gastos fijos activos del usuario usando QueryBuilder para filtrar deleted_date
-      const gastosFijosActivos = await this.gastoFijoRepository
-        .createQueryBuilder('gastoFijo')
-        .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
-        .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
-        .where('usuario.id = :usuarioId', { usuarioId })
-        .andWhere('gastoFijo.deleted_date IS NULL')
-        .getMany();
-
-      if (gastosFijosActivos.length === 0) {
-        // Si no hay gastos fijos, no hay nada que crear
-        return;
-      }
-
-      // Verificar si ya existen pagos para esta InfoInicial (evitar duplicados)
-      const pagosExistentes = await this.gastoFijoPagoRepository
-        .createQueryBuilder('gastoFijoPago')
-        .leftJoinAndSelect('gastoFijoPago.gastoFijo', 'gastoFijo')
-        .where('gastoFijoPago.infoInicial = :infoInicialId', { infoInicialId: infoInicial.id })
-        .getMany();
-
-      const gastosFijosIdsConPago = new Set(pagosExistentes.map(p => p.gastoFijo.id));
-
-      // Crear un GastoFijoPago solo para los gastos fijos que aún no tienen pago para esta InfoInicial
-      const gastosFijosPagos: GastoFijoPago[] = gastosFijosActivos
-        .filter(gastoFijo => !gastosFijosIdsConPago.has(gastoFijo.id))
-        .map(gastoFijo => {
-          const gastoFijoPago = new GastoFijoPago();
-          gastoFijoPago.gastoFijo = gastoFijo;
-          gastoFijoPago.infoInicial = infoInicial;
-          // Si el gasto fijo tiene montoFijo, usarlo como montoPago inicial, sino será 0 hasta que el usuario lo actualice
-          gastoFijoPago.montoPago = gastoFijo.montoFijo || 0;
-          gastoFijoPago.pagado = false;
-          return gastoFijoPago;
-        });
-
-      if (gastosFijosPagos.length > 0) {
-        // Guardar todos los pagos en una sola transacción
-        await this.gastoFijoPagoRepository.save(gastosFijosPagos);
-      }
-    } catch (error) {
-      // Si hay un error al crear los pagos automáticos, lo registramos pero no fallamos la creación de InfoInicial
-      // Esto permite que el usuario pueda crear la InfoInicial aunque haya un problema con los gastos fijos
-      console.error('Error al crear pagos automáticos de gastos fijos:', error);
-      // No lanzamos el error para no interrumpir el flujo principal
-    }
-  }
 }

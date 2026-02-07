@@ -17,20 +17,18 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     )
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
-      .leftJoinAndSelect('gastoFijo.gastosFijosPagos', 'gastosFijosPagos')
-      .leftJoinAndSelect('gastosFijosPagos.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
     if (request.id) {
       queryBuilder.andWhere('gastoFijo.id = :id', { id: request.id });
     }
 
-    if (request.categoriaId) {
-      queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
+    if (request.nombre) {
+      queryBuilder.andWhere('gastoFijo.nombre = :nombre', { nombre: request.nombre });
     }
 
-    if (request.infoInicialId) {
-      queryBuilder.andWhere('infoInicial.id = :infoInicialId', { infoInicialId: request.infoInicialId });
+    if (request.categoriaId) {
+      queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
     }
 
     queryBuilder.orderBy('gastoFijo.nombre', 'ASC');
@@ -57,5 +55,14 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       });
     }
     return gastoFijo;
+  }
+
+  async getGastosFijosActivos(usuarioId: number): Promise<GastoFijo[]> {
+    return this.createQueryBuilder('gastoFijo')
+      .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
+      .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
+      .where('usuario.id = :usuarioId', { usuarioId })
+      .andWhere('gastoFijo.deleted_date IS NULL')
+      .getMany();
   }
 }

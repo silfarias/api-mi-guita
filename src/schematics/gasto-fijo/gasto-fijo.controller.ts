@@ -41,21 +41,6 @@ export class GastoFijoController {
     private gastoFijoService: GastoFijoService,
   ) {}
 
-  @Get('search')
-  @ApiOperation({ summary: 'Buscar gastos fijos por usuario autenticado' })
-  @ApiOkResponse({ 
-    type: PageDto<GastoFijoDTO>, 
-    description: 'Lista paginada de Gastos Fijos del usuario autenticado' 
-  })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async search(
-    @Query() request: SearchGastoFijoRequestDto,
-    @Request() req: any,
-  ): Promise<PageDto<GastoFijoDTO>> {
-    const reqDto = plainToInstance(SearchGastoFijoRequestDto, request);
-    return await this.gastoFijoService.search(reqDto, req.user.id);
-  }
-
   @Get('mis-gastos-fijos')
   @ApiOperation({ summary: 'Buscar gastos fijos por usuario autenticado' })
   @ApiOkResponse({ 

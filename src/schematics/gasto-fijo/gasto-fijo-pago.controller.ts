@@ -21,13 +21,15 @@ import {
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { GastoFijoPagoService } from './gasto-fijo-pago.service';
 import { CreateGastoFijoPagoRequestDto } from './dto/create-gasto-fijo-pago-request.dto';
 import { UpdateGastoFijoPagoRequestDto } from './dto/update-gasto-fijo-pago-request.dto';
 import { SearchGastoFijoPagoRequestDto } from './dto/search-gasto-fijo-pago-request.dto';
+import { PorInfoInicialRequestDto } from './dto/por-info-inicial-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
-import { GastoFijoPagoDTO } from './dto/gasto-fijo-pago.dto';
+import { GastoFijoPagoDTO, PagosGastoFijoDTO } from './dto/gasto-fijo-pago.dto';
 import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -40,11 +42,38 @@ export class GastoFijoPagoController {
     private gastoFijoPagoService: GastoFijoPagoService,
   ) {}
 
+  @Get('por-info-inicial')
+  @ApiOperation({ summary: 'Obtener gastos fijos y pagos por información inicial (mes/año)' })
+  @ApiQuery({
+    name: 'infoInicialId',
+    type: Number,
+    required: true,
+    description: 'ID de la información inicial (mes/año)',
+  })
+  @ApiOkResponse({
+    type: PagosGastoFijoDTO,
+    description: 'Información inicial con gastos fijos y sus pagos del mes',
+  })
+  @ApiBadRequestResponse({ description: 'infoInicialId es requerido' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async getPagosPorInfoInicial(
+    @Query() query: PorInfoInicialRequestDto,
+    @Request() req: any,
+  ): Promise<PagosGastoFijoDTO> {
+    const reqDto = plainToInstance(PorInfoInicialRequestDto, query, {
+      enableImplicitConversion: true,
+    });
+    return await this.gastoFijoPagoService.getPagosPorInfoInicial(
+      Number(reqDto.infoInicialId),
+      req.user.id,
+    );
+  }
+
   @Get('search')
   @ApiOperation({ summary: 'Buscar gastos fijos pagos por usuario autenticado' })
-  @ApiOkResponse({ 
-    type: PageDto<GastoFijoPagoDTO>, 
-    description: 'Lista paginada de Gastos Fijos Pagos del usuario autenticado' 
+  @ApiOkResponse({
+    type: PageDto<GastoFijoPagoDTO>,
+    description: 'Lista paginada de Gastos Fijos Pagos del usuario autenticado',
   })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async search(

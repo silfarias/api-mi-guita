@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef 
 import { CreateGastoFijoPagoRequestDto } from './dto/create-gasto-fijo-pago-request.dto';
 import { UpdateGastoFijoPagoRequestDto } from './dto/update-gasto-fijo-pago-request.dto';
 import { SearchGastoFijoPagoRequestDto } from './dto/search-gasto-fijo-pago-request.dto';
-import { GastoFijoPagoDTO } from './dto/gasto-fijo-pago.dto';
+import { GastoFijoPagoDTO, PagosGastoFijoDTO } from './dto/gasto-fijo-pago.dto';
 import { GastoFijoPagoMapper } from './mappers/gasto-fijo-pago.mapper';
 import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
 import { PageDto } from 'src/common/dto/page.dto';
@@ -10,6 +10,8 @@ import { ERRORS } from 'src/common/errors/errors-codes';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
 import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
+import { InfoInicial } from '../info-inicial/entities/info-inicial.entity';
+import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 
 @Injectable()
 export class GastoFijoPagoService {
@@ -51,6 +53,43 @@ export class GastoFijoPagoService {
   async search(request: SearchGastoFijoPagoRequestDto, usuarioId: number): Promise<PageDto<GastoFijoPagoDTO>> {
     const gastoFijoPagoPage = await this.gastoFijoPagoRepository.search(request, usuarioId);
     return this.gastoFijoPagoMapper.page2Dto(request, gastoFijoPagoPage);
+  }
+
+  async getPagosPorInfoInicial(
+    infoInicialId: number,
+    usuarioId: number,
+  ): Promise<PagosGastoFijoDTO> {
+    const infoInicial = await this.infoInicialRepository.findOne({
+      where: { id: infoInicialId },
+      relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
+    });
+
+    if (!infoInicial) {
+      throw new NotFoundException({
+        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+        message: 'Información inicial no encontrada',
+        details: JSON.stringify({ infoInicialId }),
+      });
+    }
+
+    if (infoInicial.usuario.id !== usuarioId) {
+      throw new BadRequestException({
+        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+        message: 'No tienes permiso para acceder a esta información inicial',
+        details: JSON.stringify({ infoInicialId }),
+      });
+    }
+
+    const [gastosFijosActivos, gastosFijosPagos] = await Promise.all([
+      this.gastoFijoRepository.getGastosFijosActivos(usuarioId),
+      this.gastoFijoPagoRepository.findByInfoInicialIdAndUsuario(infoInicialId, usuarioId),
+    ]);
+
+    return this.gastoFijoPagoMapper.toPagosGastoFijoDTO(
+      infoInicial,
+      gastosFijosActivos,
+      gastosFijosPagos,
+    );
   }
 
   async create(request: CreateGastoFijoPagoRequestDto, usuarioId: number): Promise<GastoFijoPagoDTO> {
@@ -251,5 +290,33 @@ export class GastoFijoPagoService {
 
     await this.gastoFijoPagoRepository.softRemove(gastoFijoPago);
     return 'Gasto fijo pago eliminado correctamente';
+  }
+
+  public async crearGastosFijosPagosAutomaticos(infoInicial: InfoInicial, usuarioId: number): Promise<void> {
+    try {
+      const gastosFijosActivos = await this.gastoFijoRepository.getGastosFijosActivos(usuarioId);
+      if (gastosFijosActivos.length === 0) {
+        return;
+      }
+      const idsConPago = await this.gastoFijoPagoRepository.getGastosFijosIdsConPago(infoInicial.id);
+      const gastosFijosIdsConPago = new Set(idsConPago);
+
+      const gastosFijosPagos: GastoFijoPago[] = gastosFijosActivos
+        .filter((gastoFijo) => !gastosFijosIdsConPago.has(gastoFijo.id))
+        .map(gastoFijo => {
+          const gastoFijoPago = new GastoFijoPago();
+          gastoFijoPago.gastoFijo = gastoFijo;
+          gastoFijoPago.infoInicial = infoInicial;
+          gastoFijoPago.montoPago = gastoFijo.montoFijo || 0;
+          gastoFijoPago.pagado = false;
+          return gastoFijoPago;
+        });
+
+      if (gastosFijosPagos.length > 0) {
+        await this.gastoFijoPagoRepository.save(gastosFijosPagos);
+      }
+    } catch (error) {
+      console.error('Error al crear pagos automáticos de gastos fijos:', error);
+    }
   }
 }

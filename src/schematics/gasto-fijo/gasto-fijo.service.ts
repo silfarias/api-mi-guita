@@ -53,9 +53,15 @@ export class GastoFijoService {
     return await this.gastoFijoMapper.entity2DTO(gastoFijo);
   }
 
-  async search(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<PageDto<GastoFijoDTO>> {
-    const gastoFijoPage = await this.gastoFijoRepository.search(request, usuarioId);
-    return this.gastoFijoMapper.page2Dto(request, gastoFijoPage);
+  async getGastosFijosActivos(usuarioId: number): Promise<GastoFijoDTO[]> {
+    const gastosFijos = await this.gastoFijoRepository.find({
+      where: {
+        usuario: { id: usuarioId }
+      },
+    });
+    return Promise.all(
+      gastosFijos.map((gastoFijo) => this.gastoFijoMapper.entity2DTO(gastoFijo)),
+    );
   }
 
   async getMisGastosFijos(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<MisGastosFijosResponseDTO> {

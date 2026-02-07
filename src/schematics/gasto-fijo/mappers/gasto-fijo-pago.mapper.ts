@@ -1,7 +1,12 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { GastoFijoPago } from '../entities/gasto-fijo-pago.entity';
-import { GastoFijoPagoDTO } from '../dto/gasto-fijo-pago.dto';
+import {
+  GastoFijoPagoDTO,
+  PagosGastoFijoDTO,
+  Pagos,
+  PagoSimpleDTO,
+} from '../dto/gasto-fijo-pago.dto';
 import { CreateGastoFijoPagoRequestDto } from '../dto/create-gasto-fijo-pago-request.dto';
 import { UpdateGastoFijoPagoRequestDto } from '../dto/update-gasto-fijo-pago-request.dto';
 import { SearchGastoFijoPagoRequestDto } from '../dto/search-gasto-fijo-pago-request.dto';
@@ -77,5 +82,34 @@ export class GastoFijoPagoMapper {
       gastoFijoPago.pagado = request.pagado;
     }
     return gastoFijoPago;
+  }
+
+  async toPagosGastoFijoDTO(
+    infoInicial: InfoInicial,
+    gastosFijos: GastoFijo[],
+    gastosFijosPagos: GastoFijoPago[],
+  ): Promise<PagosGastoFijoDTO> {
+    const pagosPorGastoFijo = new Map(
+      gastosFijosPagos.map((p) => [p.gastoFijo.id, p]),
+    );
+
+    const pagos: Pagos[] = await Promise.all(
+      gastosFijos.map(async (gastoFijo) => {
+        const pagoEntity = pagosPorGastoFijo.get(gastoFijo.id);
+        const pago: PagoSimpleDTO = pagoEntity
+          ? { montoPago: Number(pagoEntity.montoPago), pagado: pagoEntity.pagado }
+          : { montoPago: 0, pagado: false };
+
+        return {
+          gastoFijo: await this.gastoFijoMapper.entity2DTO(gastoFijo),
+          pago,
+        };
+      }),
+    );
+
+    const response = new PagosGastoFijoDTO();
+    response.infoInicial = await this.infoInicialMapper.entity2DTO(infoInicial);
+    response.pagos = pagos;
+    return response;
   }
 }

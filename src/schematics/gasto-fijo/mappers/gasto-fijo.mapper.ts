@@ -1,7 +1,7 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { GastoFijo } from '../entities/gasto-fijo.entity';
-import { GastoFijoDTO, MisGastosFijosDTO, GastoFijoConPagosDTO, MisGastosFijosResponseDTO } from '../dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from '../dto/gasto-fijo.dto';
 import { CreateGastoFijoRequestDto } from '../dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from '../dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from '../dto/search-gasto-fijo-request.dto';
@@ -15,8 +15,9 @@ import { PageMetadataDto } from 'src/common/dto/page-metadata.dto';
 @Injectable()
 export class GastoFijoMapper {
   constructor(
-    private categoriaMapper: CategoriaMapper,
     private usuarioMapper: UsuarioMapper,
+    private categoriaMapper: CategoriaMapper,
+
     @Inject(forwardRef(() => GastoFijoPagoMapper))
     private gastoFijoPagoMapper: GastoFijoPagoMapper,
   ) {}
@@ -25,14 +26,9 @@ export class GastoFijoMapper {
     const dto = plainToInstance(GastoFijoDTO, gastoFijo, {
       excludeExtraneousValues: true,
     });
-    
-    // Mapear montoFijo a monto
-    dto.monto = gastoFijo.montoFijo || 0;
-    
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
     }
-    
     return dto;
   }
 
@@ -55,21 +51,12 @@ export class GastoFijoMapper {
     const dto = plainToInstance(MisGastosFijosDTO, gastoFijo, {
       excludeExtraneousValues: true,
     });
-    
-    // Mapear montoFijo a monto
-    dto.monto = gastoFijo.montoFijo || 0;
-    
-    // Mapear el usuario
     if (gastoFijo.usuario) {
       dto.usuario = await this.usuarioMapper.entity2DTO(gastoFijo.usuario);
     }
-    
-    // Mapear la categoría
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
     }
-    
-    // Mapear los pagos agrupados por info inicial
     if (gastoFijo.gastosFijosPagos && gastoFijo.gastosFijosPagos.length > 0) {
       dto.pagos = await Promise.all(
         gastoFijo.gastosFijosPagos.map(async (pago) => {
@@ -79,7 +66,6 @@ export class GastoFijoMapper {
     } else {
       dto.pagos = [];
     }
-    
     return dto;
   }
 
@@ -98,54 +84,19 @@ export class GastoFijoMapper {
     return pageDto;
   }
 
-  async entity2GastoFijoConPagosDto(gastoFijo: GastoFijo): Promise<GastoFijoConPagosDTO> {
-    const dto = plainToInstance(GastoFijoConPagosDTO, gastoFijo, {
-      excludeExtraneousValues: true,
-    });
-    
-    // Mapear montoFijo a monto
-    dto.monto = gastoFijo.montoFijo || 0;
-    
-    // Mapear la categoría
-    if (gastoFijo.categoria) {
-      dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
-    }
-    
-    // Mapear los pagos
-    if (gastoFijo.gastosFijosPagos && gastoFijo.gastosFijosPagos.length > 0) {
-      dto.pagos = await Promise.all(
-        gastoFijo.gastosFijosPagos.map(async (pago) => {
-          return await this.gastoFijoPagoMapper.entity2DTO(pago);
-        }),
-      );
-    } else {
-      dto.pagos = [];
-    }
-    
-    return dto;
-  }
-
   async page2MisGastosFijosResponseDto(
     request: SearchGastoFijoRequestDto,
     page: PageDto<GastoFijo>,
     usuario: any,
   ): Promise<MisGastosFijosResponseDTO> {
-    // Mapear el usuario
     const usuarioDTO = await this.usuarioMapper.entity2DTO(usuario);
-
-    // Mapear los gastos fijos sin usuario
     const gastosFijos = await Promise.all(
-      page.data.map(async (gastoFijo) => {
-        return this.entity2GastoFijoConPagosDto(gastoFijo);
-      }),
+      page.data.map(async (gastoFijo) => this.entity2DTO(gastoFijo)),
     );
-
-    // Crear metadata
     const metadata = new PageMetadataDto(page.metadata.count);
     metadata.setPaginationData(request.getPageNumber(), request.getTake());
     metadata.sortBy = request.sortBy;
 
-    // Crear respuesta
     const response = new MisGastosFijosResponseDTO();
     response.usuario = usuarioDTO;
     response.gastosFijos = gastosFijos;

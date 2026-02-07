@@ -75,4 +75,32 @@ export class GastoFijoPagoRepository extends Repository<GastoFijoPago> {
       relations: ['gastoFijo', 'gastoFijo.categoria', 'gastoFijo.usuario', 'infoInicial', 'infoInicial.usuario'],
     });
   }
+
+  async getGastosFijosIdsConPago(infoInicialId: number): Promise<number[]> {
+    const pagosExistentes = await this.createQueryBuilder('gastoFijoPago')
+      .leftJoinAndSelect('gastoFijoPago.gastoFijo', 'gastoFijo')
+      .where('gastoFijoPago.infoInicial = :infoInicialId', { infoInicialId })
+      .getMany();
+    return pagosExistentes
+      .map((p) => p.gastoFijo?.id)
+      .filter((id): id is number => id != null);
+  }
+
+  async findByInfoInicialIdAndUsuario(
+    infoInicialId: number,
+    usuarioId: number,
+  ): Promise<GastoFijoPago[]> {
+    return this.createQueryBuilder('gastoFijoPago')
+      .leftJoinAndSelect('gastoFijoPago.gastoFijo', 'gastoFijo')
+      .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
+      .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
+      .leftJoinAndSelect('gastoFijoPago.infoInicial', 'infoInicial')
+      .leftJoinAndSelect('infoInicial.usuario', 'infoInicialUsuario')
+      .leftJoinAndSelect('infoInicial.infoInicialMedioPagos', 'infoInicialMedioPagos')
+      .leftJoinAndSelect('infoInicialMedioPagos.medioPago', 'medioPago')
+      .where('infoInicial.id = :infoInicialId', { infoInicialId })
+      .andWhere('usuario.id = :usuarioId', { usuarioId })
+      .orderBy('gastoFijo.nombre', 'ASC')
+      .getMany();
+  }
 }
