@@ -15,6 +15,10 @@ export class GastoFijoDTO extends CommonDTO {
   @Expose()
   montoFijo: number;
 
+  @ApiProperty({ description: 'Indica si el gasto fijo está activo para este usuario', example: true })
+  @Expose()
+  activo: boolean;
+
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()
   @Type(() => CategoriaDTO)
@@ -37,6 +41,10 @@ export class MisGastosFijosDTO extends CommonDTO {
   @Expose()
   montoFijo: number;
 
+  @ApiProperty({ description: 'Indica si el gasto fijo está activo', example: true })
+  @Expose()
+  activo: boolean;
+
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()
   @Type(() => CategoriaDTO)
@@ -58,6 +66,10 @@ export class GastoFijoConPagosDTO extends CommonDTO {
   @ApiProperty({ description: 'Monto del gasto fijo', example: 5000.00 })
   @Expose()
   monto: number;
+
+  @ApiProperty({ description: 'Indica si el gasto fijo está activo', example: true })
+  @Expose()
+  activo: boolean;
 
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()

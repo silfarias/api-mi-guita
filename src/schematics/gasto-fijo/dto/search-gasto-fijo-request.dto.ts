@@ -22,4 +22,9 @@ export class SearchGastoFijoRequestDto extends BaseSearchDto {
   @IsNumber()
   categoriaId?: number;
 
+  @ApiProperty({ description: 'Filtrar por gastos fijos activos', type: Boolean, required: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  activo?: boolean;
 }

@@ -111,7 +111,8 @@ export class GastoFijoMapper {
   ): GastoFijo {
     const newGastoFijo: GastoFijo = new GastoFijo();
     newGastoFijo.nombre = request.nombre;
-    newGastoFijo.montoFijo = request.montoFijo !== undefined ? request.montoFijo : null;
+    newGastoFijo.montoFijo = request.montoFijo != null ? request.montoFijo : null;
+    newGastoFijo.activo = true; // por defecto activo al crear
     newGastoFijo.categoria = categoria;
     return newGastoFijo;
   }
@@ -126,6 +127,9 @@ export class GastoFijoMapper {
     }
     if (request.montoFijo !== undefined) {
       gastoFijo.montoFijo = request.montoFijo;
+    }
+    if (request.activo !== undefined) {
+      gastoFijo.activo = request.activo;
     }
     if (categoria !== undefined) {
       gastoFijo.categoria = categoria;

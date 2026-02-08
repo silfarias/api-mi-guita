@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { EntityManager } from 'typeorm';
 import { ResumenPagoGastoFijo } from './entities/resumen-pago-gasto-fijo.entity';
 import { ResumenPagoGastoFijoDTO } from './dto/resumen-pago-gasto-fijo.dto';
 import { ResumenPagoGastoFijoRepository } from './repository/resumen-pago-gasto-fijo.repository';
@@ -6,6 +7,8 @@ import { ResumenPagoGastoFijoMapper } from './mappers/resumen-pago-gasto-fijo.ma
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
 import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
 import { ERRORS } from 'src/common/errors/errors-codes';
+import { InfoInicial } from '../info-inicial/entities/info-inicial.entity';
+import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 
 @Injectable()
 export class ResumenPagoGastoFijoService {
@@ -19,10 +22,22 @@ export class ResumenPagoGastoFijoService {
   ) {}
 
   /**
-   * Crea o inicializa un resumen para una InfoInicial
+   * Crea o inicializa un resumen para una InfoInicial.
+   * Si se recibe manager (transacción), todas las lecturas/escrituras usan ese manager.
    */
-  async crearOInicializarResumen(infoInicialId: number, usuarioId: number): Promise<ResumenPagoGastoFijo> {
-    const infoInicial = await this.infoInicialRepository.findOne({
+  async crearOInicializarResumen(
+    infoInicialId: number,
+    usuarioId: number,
+    manager?: EntityManager,
+  ): Promise<ResumenPagoGastoFijo> {
+    const repoInfo = manager
+      ? manager.getRepository(InfoInicial)
+      : this.infoInicialRepository;
+    const repoResumen = manager
+      ? manager.getRepository(ResumenPagoGastoFijo)
+      : this.resumenRepository;
+
+    const infoInicial = await repoInfo.findOne({
       where: { id: infoInicialId },
       relations: ['usuario'],
     });
@@ -35,11 +50,17 @@ export class ResumenPagoGastoFijoService {
       });
     }
 
-    // Verificar si ya existe un resumen
-    let resumen = await this.resumenRepository.findByInfoInicialId(infoInicialId);
+    const findResumen = manager
+      ? () =>
+          repoResumen.findOne({
+            where: { infoInicial: { id: infoInicialId } },
+            relations: ['infoInicial', 'usuario'],
+          })
+      : () => this.resumenRepository.findByInfoInicialId(infoInicialId);
+
+    let resumen = await findResumen();
 
     if (!resumen) {
-      // Crear nuevo resumen
       resumen = new ResumenPagoGastoFijo();
       resumen.infoInicial = infoInicial;
       resumen.usuario = infoInicial.usuario;
@@ -47,54 +68,64 @@ export class ResumenPagoGastoFijoService {
       resumen.montoPagado = 0;
       resumen.cantidadGastosTotales = 0;
       resumen.cantidadGastosPagados = 0;
-      await this.resumenRepository.save(resumen);
+      await repoResumen.save(resumen);
     }
 
-    // Recalcular el resumen basado en los gastos fijos pagos actuales
-    await this.recalcularResumen(infoInicialId);
+    await this.recalcularResumen(infoInicialId, manager);
 
-    return await this.resumenRepository.findByInfoInicialId(infoInicialId) as ResumenPagoGastoFijo;
+    const resumenFinal = await findResumen();
+    return resumenFinal as ResumenPagoGastoFijo;
   }
 
   /**
-   * Recalcula el resumen basado en los gastos fijos pagos de la InfoInicial
+   * Recalcula el resumen basado en los gastos fijos pagos de la InfoInicial.
+   * - montoTotal: suma de todos los montoPago (esperado por línea; al inicio son 0, luego el usuario puede setear montoFijo o manual).
+   * - montoPagado: suma de montoPago solo de los registros marcados como pagado.
+   * - cantidadGastosTotales: cantidad de GastoFijoPago para este mes (solo gastos fijos activos).
+   * - cantidadGastosPagados: cantidad de pagos con pagado = true.
    */
-  async recalcularResumen(infoInicialId: number): Promise<void> {
-    const resumen = await this.resumenRepository.findByInfoInicialId(infoInicialId);
+  async recalcularResumen(infoInicialId: number, manager?: EntityManager): Promise<void> {
+    const repoResumen = manager
+      ? manager.getRepository(ResumenPagoGastoFijo)
+      : this.resumenRepository;
+    const repoPago = manager
+      ? manager.getRepository(GastoFijoPago)
+      : this.gastoFijoPagoRepository;
+
+    const resumen = manager
+      ? await repoResumen.findOne({
+          where: { infoInicial: { id: infoInicialId } },
+          relations: ['infoInicial', 'usuario'],
+        })
+      : await this.resumenRepository.findByInfoInicialId(infoInicialId);
 
     if (!resumen) {
-      return; // Si no existe resumen, no hay nada que recalcular
+      return;
     }
 
-    // Obtener todos los gastos fijos pagos de esta InfoInicial
-    const gastosFijosPagos = await this.gastoFijoPagoRepository.find({
+    const gastosFijosPagos = await repoPago.find({
       where: { infoInicial: { id: infoInicialId } },
       relations: ['gastoFijo'],
     });
 
-    // Calcular totales
     let montoTotal = 0;
     let montoPagado = 0;
     let cantidadGastosPagados = 0;
 
-    gastosFijosPagos.forEach(pago => {
-      // El monto total se suma siempre (usando montoPago que puede venir de montoFijo o ser establecido manualmente)
-      montoTotal += Number(pago.montoPago || 0);
-      
-      // El monto pagado solo se suma si está marcado como pagado
+    gastosFijosPagos.forEach((pago) => {
+      montoTotal += Number(pago.montoPago ?? 0);
       if (pago.pagado) {
-        montoPagado += Number(pago.montoPago || 0);
+        montoPagado += Number(pago.montoPago ?? 0);
         cantidadGastosPagados++;
       }
     });
 
-    // Actualizar el resumen
     resumen.montoTotal = montoTotal;
     resumen.montoPagado = montoPagado;
     resumen.cantidadGastosTotales = gastosFijosPagos.length;
     resumen.cantidadGastosPagados = cantidadGastosPagados;
 
-    await this.resumenRepository.save(resumen);
+    await repoResumen.save(resumen);
   }
 
   /**

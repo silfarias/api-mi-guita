@@ -31,6 +31,10 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
     }
 
+    if (request.activo !== undefined) {
+      queryBuilder.andWhere('gastoFijo.activo = :activo', { activo: request.activo });
+    }
+
     queryBuilder.orderBy('gastoFijo.nombre', 'ASC');
     queryBuilder.addOrderBy('gastoFijo.id', 'DESC');
 
@@ -63,6 +67,7 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
       .where('usuario.id = :usuarioId', { usuarioId })
       .andWhere('gastoFijo.deleted_date IS NULL')
+      .andWhere('gastoFijo.activo = :activo', { activo: true })
       .getMany();
   }
 }

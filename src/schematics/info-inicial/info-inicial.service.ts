@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { CreateInfoInicialRequestDto } from './dto/create-info-inicial-request.dto';
 import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.dto';
 import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
@@ -8,6 +9,7 @@ import { InfoInicialMapper } from './mappers/info-inicial.mapper';
 import { InfoInicialRepository } from './repository/info-inicial.repository';
 import { InfoInicialMedioPagoRepository } from './repository/info-inicial-mediopago.repository';
 import { PageDto } from 'src/common/dto/page.dto';
+import { InfoInicial } from './entities/info-inicial.entity';
 import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { UsuarioRepository } from '../usuario/repository/usuario.repository';
@@ -23,17 +25,14 @@ export class InfoInicialService {
   constructor(
     private infoInicialMapper: InfoInicialMapper,
     private infoInicialRepository: InfoInicialRepository,
-
     private infoInicialMedioPagoRepository: InfoInicialMedioPagoRepository,
-
     private usuarioRepository: UsuarioRepository,
     private medioPagoMapper: MedioPagoMapper,
     private medioPagoRepository: MedioPagoRepository,
     private movimientoRepository: MovimientoRepository,
-
     private gastoFijoPagoService: GastoFijoPagoService,
-
     private resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
+    private dataSource: DataSource,
   ) {}
 
   async findOne(id: number): Promise<InfoInicialDTO> {
@@ -100,21 +99,25 @@ export class InfoInicialService {
 
 
       const newInfoInicial = this.infoInicialMapper.createDTO2Entity(request, usuario);
-      const infoInicialSaved = await this.infoInicialRepository.save(newInfoInicial);
 
-      const infoInicialMedioPagos: InfoInicialMedioPago[] = request.mediosPago.map(mp => {
-        const infoMedioPago = new InfoInicialMedioPago();
-        infoMedioPago.infoInicial = infoInicialSaved;
-        infoMedioPago.medioPago = mediosPagoExistentes.find(m => m.id === mp.medioPagoId)!;
-        infoMedioPago.monto = mp.monto;
-        return infoMedioPago;
+      const infoInicialSaved = await this.dataSource.transaction(async (manager) => {
+        const infoInicial = await manager.getRepository(InfoInicial).save(newInfoInicial);
+
+        const infoInicialMedioPagos: InfoInicialMedioPago[] = request.mediosPago.map((mp) => {
+          const infoMedioPago = new InfoInicialMedioPago();
+          infoMedioPago.infoInicial = infoInicial;
+          infoMedioPago.medioPago = mediosPagoExistentes.find((m) => m.id === mp.medioPagoId)!;
+          infoMedioPago.monto = mp.monto;
+          return infoMedioPago;
+        });
+
+        await manager.getRepository(InfoInicialMedioPago).save(infoInicialMedioPagos);
+
+        await this.gastoFijoPagoService.crearGastosFijosPagosAutomaticos(infoInicial, usuarioId, manager);
+        await this.resumenPagoGastoFijoService.crearOInicializarResumen(infoInicial.id, usuarioId, manager);
+
+        return infoInicial;
       });
-
-      await this.infoInicialMedioPagoRepository.save(infoInicialMedioPagos);
-
-      await this.gastoFijoPagoService.crearGastosFijosPagosAutomaticos(infoInicialSaved, usuarioId);
-
-      await this.resumenPagoGastoFijoService.crearOInicializarResumen(infoInicialSaved.id, usuarioId);
 
       const searchInfoInicial = await this.infoInicialRepository.findOne({
         where: { id: infoInicialSaved.id },

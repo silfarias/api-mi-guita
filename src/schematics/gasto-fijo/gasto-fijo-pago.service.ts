@@ -10,6 +10,7 @@ import { ERRORS } from 'src/common/errors/errors-codes';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
 import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
+import { EntityManager } from 'typeorm';
 import { InfoInicial } from '../info-inicial/entities/info-inicial.entity';
 import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 
@@ -214,13 +215,12 @@ export class GastoFijoPagoService {
         });
       }
 
-      // Si se está marcando como pagado pero no se proporciona montoPago, usar el montoFijo si está disponible
+      // Si se está marcando como pagado pero no se proporciona montoPago: usar montoFijo si existe y > 0, sino exigir que se envíe montoPago
       if (request.pagado === true && request.montoPago === undefined) {
-        if (gastoFijoPago.gastoFijo.montoFijo && gastoFijoPago.montoPago === 0) {
-          // Si tiene montoFijo y el montoPago actual es 0, usar montoFijo
-          request.montoPago = gastoFijoPago.gastoFijo.montoFijo;
+        const montoFijo = gastoFijoPago.gastoFijo.montoFijo != null ? Number(gastoFijoPago.gastoFijo.montoFijo) : 0;
+        if (montoFijo > 0 && gastoFijoPago.montoPago === 0) {
+          request.montoPago = montoFijo;
         } else if (gastoFijoPago.montoPago === 0) {
-          // Si no tiene montoFijo y el montoPago es 0, requerir que se proporcione
           throw new BadRequestException({
             code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
             message: 'Debe proporcionar el monto pagado antes de marcar como pagado',
@@ -292,7 +292,11 @@ export class GastoFijoPagoService {
     return 'Gasto fijo pago eliminado correctamente';
   }
 
-  public async crearGastosFijosPagosAutomaticos(infoInicial: InfoInicial, usuarioId: number): Promise<void> {
+  public async crearGastosFijosPagosAutomaticos(
+    infoInicial: InfoInicial,
+    usuarioId: number,
+    manager?: EntityManager,
+  ): Promise<void> {
     try {
       const gastosFijosActivos = await this.gastoFijoRepository.getGastosFijosActivos(usuarioId);
       if (gastosFijosActivos.length === 0) {
@@ -303,20 +307,25 @@ export class GastoFijoPagoService {
 
       const gastosFijosPagos: GastoFijoPago[] = gastosFijosActivos
         .filter((gastoFijo) => !gastosFijosIdsConPago.has(gastoFijo.id))
-        .map(gastoFijo => {
+        .map((gastoFijo) => {
           const gastoFijoPago = new GastoFijoPago();
           gastoFijoPago.gastoFijo = gastoFijo;
           gastoFijoPago.infoInicial = infoInicial;
-          gastoFijoPago.montoPago = gastoFijo.montoFijo || 0;
+          gastoFijoPago.montoPago = 0;
           gastoFijoPago.pagado = false;
           return gastoFijoPago;
         });
 
       if (gastosFijosPagos.length > 0) {
-        await this.gastoFijoPagoRepository.save(gastosFijosPagos);
+        if (manager) {
+          await manager.getRepository(GastoFijoPago).save(gastosFijosPagos);
+        } else {
+          await this.gastoFijoPagoRepository.save(gastosFijosPagos);
+        }
       }
     } catch (error) {
       console.error('Error al crear pagos automáticos de gastos fijos:', error);
+      throw error;
     }
   }
 }

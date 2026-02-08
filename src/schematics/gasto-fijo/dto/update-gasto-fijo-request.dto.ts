@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateGastoFijoRequestDto {
@@ -24,6 +24,17 @@ export class UpdateGastoFijoRequestDto {
   @Type(() => Number)
   @IsNumber()
   montoFijo?: number;
+
+  @ApiProperty({ 
+    description: 'Indica si el gasto fijo está activo (para mostrar/ocultar en el mes)', 
+    type: Boolean, 
+    nullable: true, 
+    example: true,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  activo?: boolean;
 
   @ApiProperty({ 
     description: 'ID de la categoría del gasto fijo', 
