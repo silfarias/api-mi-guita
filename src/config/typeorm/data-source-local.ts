@@ -11,9 +11,9 @@ export const DataSourceConfigLocal: DataSourceOptions = {
   entities: [__dirname + '/../../schematics/**/entities/*.entity{.ts,.js}'],
   logging: false,
   synchronize: true,
-  timezone: 'America/Argentina/Buenos_Aires', // Zona horaria de Argentina (UTC-3)
+  timezone: '-03:00', // Argentina (UTC-3), compatible con MySQL2
   extra: {
-    timezone: 'America/Argentina/Buenos_Aires', // Zona horaria de Argentina para MySQL2
+    timezone: '-03:00',
     charset: 'utf8mb4',
     dateStrings: true,
   },

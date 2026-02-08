@@ -1,0 +1,20 @@
+# Configuración para deploy en Render
+# https://render.com/docs/blueprint-spec
+#
+# Si ya creaste el servicio a mano, en el Dashboard de Render cambia:
+# - Build Command: npm ci && npm run build
+# - Start Command: npm run start:prod
+# y no uses este archivo para crear el servicio (o crea uno nuevo desde Blueprint).
+
+services:
+  - type: web
+    name: api-mi-guita
+    runtime: node
+    plan: free
+
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:prod
+
+    envVars:
+      - key: NODE_ENV
+        value: production
