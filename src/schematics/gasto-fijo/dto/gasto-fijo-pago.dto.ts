@@ -27,6 +27,10 @@ export class GastoFijoPagoDTO extends CommonDTO {
 
 export class PagoSimpleDTO {
 
+  @ApiProperty({ description: 'ID del pago del gasto fijo (undefined si aún no existe registro)' })
+  @Expose()
+  id?: number;
+
   @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes' })
   @Expose()
   montoPago: number;

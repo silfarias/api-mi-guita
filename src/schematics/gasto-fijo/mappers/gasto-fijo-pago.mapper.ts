@@ -97,8 +97,12 @@ export class GastoFijoPagoMapper {
       gastosFijos.map(async (gastoFijo) => {
         const pagoEntity = pagosPorGastoFijo.get(gastoFijo.id);
         const pago: PagoSimpleDTO = pagoEntity
-          ? { montoPago: Number(pagoEntity.montoPago), pagado: pagoEntity.pagado }
-          : { montoPago: 0, pagado: false };
+          ? {
+              id: pagoEntity.id,
+              montoPago: Number(pagoEntity.montoPago),
+              pagado: pagoEntity.pagado,
+            }
+          : { id: undefined, montoPago: 0, pagado: false };
 
         return {
           gastoFijo: await this.gastoFijoMapper.entity2DTO(gastoFijo),
