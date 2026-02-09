@@ -46,4 +46,26 @@ export class UpdateGastoFijoRequestDto {
   @Type(() => Number)
   @IsNumber()
   categoriaId?: number;
+
+  @ApiProperty({ 
+    description: 'Indica si el gasto fijo es un débito automático', 
+    type: Boolean, 
+    nullable: true, 
+    example: true 
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  esDebitoAutomatico?: boolean;
+
+  @ApiProperty({ 
+    description: 'Si es débito automático, se debe proporcionar el ID del medio de pago. Si no es débito automático, debe ser null', 
+    type: Number, 
+    nullable: true,
+    example: 1 
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  medioPagoId?: number | null;
 }

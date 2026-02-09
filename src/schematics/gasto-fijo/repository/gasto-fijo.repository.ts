@@ -17,6 +17,9 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     )
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
+      .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
+      .leftJoinAndSelect('gastoFijo.gastosFijosPagos', 'gastosFijosPagos')
+      .leftJoinAndSelect('gastosFijosPagos.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
     if (request.id) {
@@ -49,7 +52,7 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
   async findOneById(id: number): Promise<GastoFijo> {
     const gastoFijo = await this.findOne({
       where: { id: id },
-      relations: ['categoria', 'usuario'],
+      relations: ['categoria', 'usuario', 'medioPago'],
     });
     if (!gastoFijo) {
       throw new NotFoundException({
@@ -65,6 +68,7 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     return this.createQueryBuilder('gastoFijo')
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
+      .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
       .where('usuario.id = :usuarioId', { usuarioId })
       .andWhere('gastoFijo.deleted_date IS NULL')
       .andWhere('gastoFijo.activo = :activo', { activo: true })

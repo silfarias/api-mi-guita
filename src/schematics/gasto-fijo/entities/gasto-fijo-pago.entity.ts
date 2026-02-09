@@ -2,6 +2,7 @@ import { BaseEntity } from "src/common/models/baseentity";
 import { GastoFijo } from "./gasto-fijo.entity";
 import { InfoInicial } from "src/schematics/info-inicial/entities/info-inicial.entity";
 import { Column, Entity, ManyToOne, JoinColumn } from "typeorm";
+import { MedioPago } from "src/schematics/medio-pago/entities/medio-pago.entity";
 
 @Entity('gast_02_rel_gasto_fijo_pago')
 export class GastoFijoPago extends BaseEntity {
@@ -19,6 +20,10 @@ export class GastoFijoPago extends BaseEntity {
 
     @Column({ name: 'gast02_pagado', type: 'boolean', default: false })
     pagado: boolean;
+
+    @ManyToOne(() => MedioPago, (medioPago) => medioPago.gastosFijosPagos)
+    @JoinColumn({ name: 'rela01_med' })
+    medioPago: MedioPago | null;	
 
     static fromId(id: number) {
         const gastoFijoPago = new GastoFijoPago();

@@ -14,6 +14,7 @@ import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.r
 import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
 import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 import { MesEnum } from 'src/common/enums/mes-enum';
+import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
 
 @Injectable()
 export class GastoFijoService {
@@ -26,6 +27,8 @@ export class GastoFijoService {
     private infoInicialRepository: InfoInicialRepository,
     @Inject(forwardRef(() => GastoFijoPagoRepository))
     private gastoFijoPagoRepository: GastoFijoPagoRepository,
+    @Inject(forwardRef(() => MedioPagoRepository))
+    private medioPagoRepository: MedioPagoRepository,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<GastoFijoDTO> {
@@ -125,8 +128,42 @@ export class GastoFijoService {
         });
       }
 
+      // Validar lógica de débito automático
+      if (request.esDebitoAutomatico) {
+        // Si es débito automático, debe proporcionar medioPagoId
+        if (!request.medioPagoId) {
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'Si el gasto fijo es débito automático, debe proporcionar el ID del medio de pago',
+            details: JSON.stringify({ esDebitoAutomatico: request.esDebitoAutomatico }),
+          });
+        }
+
+        // Validar que el medio de pago existe
+        const medioPago = await this.medioPagoRepository.findOne({
+          where: { id: request.medioPagoId },
+        });
+
+        if (!medioPago) {
+          throw new NotFoundException({
+            code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            message: 'Medio de pago no encontrado',
+            details: JSON.stringify({ medioPagoId: request.medioPagoId }),
+          });
+        }
+      } else {
+        // Si no es débito automático, no debe tener medioPagoId
+        if (request.medioPagoId) {
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'Si el gasto fijo no es débito automático, no debe proporcionar medio de pago',
+            details: JSON.stringify({ esDebitoAutomatico: request.esDebitoAutomatico, medioPagoId: request.medioPagoId }),
+          });
+        }
+      }
+
       // Crear el gasto fijo
-      const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(request, categoria);
+      const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(request);
       newGastoFijo.usuario = usuario;
       const gastoFijoSaved = await this.gastoFijoRepository.save(newGastoFijo);
 
@@ -136,7 +173,7 @@ export class GastoFijoService {
       // Buscar el gasto fijo guardado con relaciones
       const searchGastoFijo = await this.gastoFijoRepository.findOne({
         where: { id: gastoFijoSaved.id },
-        relations: ['categoria', 'usuario'],
+        relations: ['categoria', 'usuario', 'medioPago'],
       });
 
       if (!searchGastoFijo) {
@@ -169,7 +206,7 @@ export class GastoFijoService {
       // Verificar que el gasto fijo existe y pertenece al usuario
       const gastoFijo = await this.gastoFijoRepository.findOne({
         where: { id: id },
-        relations: ['categoria', 'usuario'],
+        relations: ['categoria', 'usuario', 'medioPago'],
       });
 
       if (!gastoFijo) {
@@ -188,21 +225,19 @@ export class GastoFijoService {
         });
       }
 
-      // Validar y cargar categoría si se está actualizando
-      let categoria = gastoFijo.categoria;
+      // Validar categoría si se está actualizando
       if (request.categoriaId !== undefined && request.categoriaId !== gastoFijo.categoria?.id) {
-        const nuevaCategoria = await this.categoriaRepository.findOne({
+        const categoriaExiste = await this.categoriaRepository.findOne({
           where: { id: request.categoriaId },
         });
 
-        if (!nuevaCategoria) {
+        if (!categoriaExiste) {
           throw new NotFoundException({
             code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
             message: 'Categoría no encontrada',
             details: JSON.stringify({ categoriaId: request.categoriaId }),
           });
         }
-        categoria = nuevaCategoria;
       }
 
       // Validar que si se cambia el nombre, no exista otro gasto fijo con ese nombre para este usuario
@@ -223,14 +258,54 @@ export class GastoFijoService {
         }
       }
 
+      // Validar lógica de débito automático
+      const esDebitoAutomatico = request.esDebitoAutomatico !== undefined ? request.esDebitoAutomatico : gastoFijo.esDebitoAutomatico;
+
+      if (request.esDebitoAutomatico !== undefined || request.medioPagoId !== undefined) {
+        if (esDebitoAutomatico) {
+          // Si es débito automático, debe proporcionar medioPagoId
+          const medioPagoId = request.medioPagoId !== undefined ? request.medioPagoId : gastoFijo.medioPago?.id;
+          
+          if (!medioPagoId) {
+            throw new BadRequestException({
+              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+              message: 'Si el gasto fijo es débito automático, debe proporcionar el ID del medio de pago',
+              details: JSON.stringify({ esDebitoAutomatico: esDebitoAutomatico }),
+            });
+          }
+
+          // Validar que el medio de pago existe
+          const medioPagoExiste = await this.medioPagoRepository.findOne({
+            where: { id: medioPagoId },
+          });
+
+          if (!medioPagoExiste) {
+            throw new NotFoundException({
+              code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+              message: 'Medio de pago no encontrado',
+              details: JSON.stringify({ medioPagoId }),
+            });
+          }
+        } else {
+          // Si no es débito automático, no debe tener medioPagoId
+          if (request.medioPagoId !== undefined && request.medioPagoId !== null) {
+            throw new BadRequestException({
+              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+              message: 'Si el gasto fijo no es débito automático, no debe proporcionar medio de pago',
+              details: JSON.stringify({ esDebitoAutomatico: esDebitoAutomatico, medioPagoId: request.medioPagoId }),
+            });
+          }
+        }
+      }
+
       // Actualizar el gasto fijo
-      const updateGastoFijo = this.gastoFijoMapper.updateDTO2Entity(gastoFijo, request, categoria);
+      const updateGastoFijo = this.gastoFijoMapper.updateDTO2Entity(gastoFijo, request);
       await this.gastoFijoRepository.save(updateGastoFijo);
 
       // Buscar el gasto fijo actualizado
       const searchGastoFijo = await this.gastoFijoRepository.findOne({
         where: { id: id },
-        relations: ['categoria', 'usuario'],
+        relations: ['categoria', 'usuario', 'medioPago'],
       });
 
       if (!searchGastoFijo) {
@@ -316,9 +391,6 @@ export class GastoFijoService {
         });
       }
 
-      // Crear un mapa de categorías por ID para acceso rápido
-      const categoriasMap = new Map(categorias.map(c => [c.id, c]));
-
       // Validar que no haya nombres duplicados en el array de la request
       const nombresEnRequest = request.gastosFijos.map(gf => gf.nombre.toLowerCase());
       const nombresUnicos = new Set(nombresEnRequest);
@@ -348,17 +420,49 @@ export class GastoFijoService {
         });
       }
 
-      // Crear los gastos fijos
-      const nuevosGastosFijos = request.gastosFijos.map(gastoFijoDto => {
-        const categoria = categoriasMap.get(gastoFijoDto.categoriaId);
-        if (!categoria) {
+      // Validar medios de pago para débitos automáticos
+      const medioPagoIds = [...new Set(request.gastosFijos.filter(gf => gf.medioPagoId).map(gf => gf.medioPagoId!))];
+      
+      if (medioPagoIds.length > 0) {
+        const mediosPago = await this.medioPagoRepository.find({
+          where: medioPagoIds.map(id => ({ id })),
+        });
+
+        if (mediosPago.length !== medioPagoIds.length) {
+          const mediosPagoEncontrados = new Set(mediosPago.map(mp => mp.id));
+          const mediosPagoNoEncontrados = medioPagoIds.filter(id => !mediosPagoEncontrados.has(id));
           throw new NotFoundException({
             code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-            message: 'Categoría no encontrada',
-            details: JSON.stringify({ categoriaId: gastoFijoDto.categoriaId }),
+            message: 'Uno o más medios de pago no fueron encontrados',
+            details: JSON.stringify({ medioPagoIds: mediosPagoNoEncontrados }),
           });
         }
-        const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(gastoFijoDto, categoria);
+      }
+
+      // Validar lógica de débito automático para cada gasto fijo
+      for (const gastoFijoDto of request.gastosFijos) {
+        if (gastoFijoDto.esDebitoAutomatico) {
+          if (!gastoFijoDto.medioPagoId) {
+            throw new BadRequestException({
+              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+              message: `El gasto fijo "${gastoFijoDto.nombre}" es débito automático pero no tiene medio de pago asignado`,
+              details: JSON.stringify({ nombre: gastoFijoDto.nombre }),
+            });
+          }
+        } else {
+          if (gastoFijoDto.medioPagoId) {
+            throw new BadRequestException({
+              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+              message: `El gasto fijo "${gastoFijoDto.nombre}" no es débito automático pero tiene medio de pago asignado`,
+              details: JSON.stringify({ nombre: gastoFijoDto.nombre }),
+            });
+          }
+        }
+      }
+
+      // Crear los gastos fijos
+      const nuevosGastosFijos = request.gastosFijos.map(gastoFijoDto => {
+        const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(gastoFijoDto);
         newGastoFijo.usuario = usuario;
         return newGastoFijo;
       });
@@ -377,7 +481,7 @@ export class GastoFijoService {
       // Buscar los gastos fijos guardados con relaciones
       const gastosFijosCompletos = await this.gastoFijoRepository.find({
         where: ids.map(id => ({ id })),
-        relations: ['categoria', 'usuario'],
+        relations: ['categoria', 'usuario', 'medioPago'],
       });
 
       // Convertir a DTOs

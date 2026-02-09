@@ -11,13 +11,15 @@ import { Categoria } from 'src/schematics/categoria/entities/categoria.entity';
 import { UsuarioMapper } from 'src/schematics/usuario/mappers/usuario.mapper';
 import { GastoFijoPagoMapper } from './gasto-fijo-pago.mapper';
 import { PageMetadataDto } from 'src/common/dto/page-metadata.dto';
+import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
+import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
 
 @Injectable()
 export class GastoFijoMapper {
   constructor(
     private usuarioMapper: UsuarioMapper,
     private categoriaMapper: CategoriaMapper,
-
+    private medioPagoMapper: MedioPagoMapper,
     @Inject(forwardRef(() => GastoFijoPagoMapper))
     private gastoFijoPagoMapper: GastoFijoPagoMapper,
   ) {}
@@ -26,9 +28,18 @@ export class GastoFijoMapper {
     const dto = plainToInstance(GastoFijoDTO, gastoFijo, {
       excludeExtraneousValues: true,
     });
+    
+    // Mapear montoFijo a monto
+    dto.monto = gastoFijo.montoFijo || 0;
+    
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
     }
+    
+    if (gastoFijo.medioPago) {
+      dto.medioPago = await this.medioPagoMapper.entity2DTO(gastoFijo.medioPago);
+    }
+    
     return dto;
   }
 
@@ -51,11 +62,18 @@ export class GastoFijoMapper {
     const dto = plainToInstance(MisGastosFijosDTO, gastoFijo, {
       excludeExtraneousValues: true,
     });
+    
+    // Mapear montoFijo a monto
+    dto.monto = gastoFijo.montoFijo || 0;
+    
     if (gastoFijo.usuario) {
       dto.usuario = await this.usuarioMapper.entity2DTO(gastoFijo.usuario);
     }
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
+    }
+    if (gastoFijo.medioPago) {
+      dto.medioPago = await this.medioPagoMapper.entity2DTO(gastoFijo.medioPago);
     }
     if (gastoFijo.gastosFijosPagos && gastoFijo.gastosFijosPagos.length > 0) {
       dto.pagos = await Promise.all(
@@ -91,7 +109,7 @@ export class GastoFijoMapper {
   ): Promise<MisGastosFijosResponseDTO> {
     const usuarioDTO = await this.usuarioMapper.entity2DTO(usuario);
     const gastosFijos = await Promise.all(
-      page.data.map(async (gastoFijo) => this.entity2DTO(gastoFijo)),
+      page.data.map(async (gastoFijo) => this.entity2MisGastosFijosDto(gastoFijo)),
     );
     const metadata = new PageMetadataDto(page.metadata.count);
     metadata.setPaginationData(request.getPageNumber(), request.getTake());
@@ -107,20 +125,20 @@ export class GastoFijoMapper {
 
   createDTO2Entity(
     request: CreateGastoFijoRequestDto,
-    categoria: Categoria,
   ): GastoFijo {
     const newGastoFijo: GastoFijo = new GastoFijo();
     newGastoFijo.nombre = request.nombre;
     newGastoFijo.montoFijo = request.montoFijo != null ? request.montoFijo : null;
     newGastoFijo.activo = true; // por defecto activo al crear
-    newGastoFijo.categoria = categoria;
+    newGastoFijo.categoria = Categoria.fromId(request.categoriaId);
+    newGastoFijo.esDebitoAutomatico = request.esDebitoAutomatico;
+    newGastoFijo.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
     return newGastoFijo;
   }
 
   updateDTO2Entity(
     gastoFijo: GastoFijo,
     request: UpdateGastoFijoRequestDto,
-    categoria?: Categoria,
   ): GastoFijo {
     if (request.nombre !== undefined) {
       gastoFijo.nombre = request.nombre;
@@ -131,8 +149,14 @@ export class GastoFijoMapper {
     if (request.activo !== undefined) {
       gastoFijo.activo = request.activo;
     }
-    if (categoria !== undefined) {
-      gastoFijo.categoria = categoria;
+    if (request.esDebitoAutomatico !== undefined) {
+      gastoFijo.esDebitoAutomatico = request.esDebitoAutomatico;
+    }
+    if (request.categoriaId !== undefined) {
+      gastoFijo.categoria = Categoria.fromId(request.categoriaId);
+    }
+    if (request.medioPagoId !== undefined) {
+      gastoFijo.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
     }
     return gastoFijo;
   }

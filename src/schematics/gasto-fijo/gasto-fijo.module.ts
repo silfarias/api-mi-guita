@@ -18,6 +18,7 @@ import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
 import { CategoriaModule } from '../categoria/categoria.module';
 import { UsuarioModule } from '../usuario/usuario.module';
 import { InfoInicialModule } from '../info-inicial/info-inicial.module';
+import { MedioPagoModule } from '../medio-pago/medio-pago.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { InfoInicialModule } from '../info-inicial/info-inicial.module';
     forwardRef(() => CategoriaModule),
     forwardRef(() => UsuarioModule),
     forwardRef(() => InfoInicialModule),
+    forwardRef(() => MedioPagoModule),
   ],
   controllers: [GastoFijoController, GastoFijoPagoController, ResumenPagoGastoFijoController],
   providers: [

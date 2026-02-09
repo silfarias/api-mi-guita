@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString, IsOptional, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, IsOptional, Min, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateGastoFijoRequestDto {
@@ -35,4 +35,20 @@ export class CreateGastoFijoRequestDto {
   @Type(() => Number)
   @IsNumber()
   categoriaId: number;
+
+  @ApiProperty({ 
+    description: 'Indica si el gasto fijo es un debito automatico', 
+    type: Boolean, 
+    required: true, 
+    example: true 
+  })
+  @IsNotEmpty()
+  @IsBoolean()
+  esDebitoAutomatico: boolean;
+
+  @ApiProperty({ description: 'Si es debito automatico, se debe proporcionar el id del medio de pago'})
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  medioPagoId?: number;
 }
