@@ -16,6 +16,7 @@ import { InfoInicialMapper } from 'src/schematics/info-inicial/mappers/info-inic
 import { GastoFijo } from '../entities/gasto-fijo.entity';
 import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
 import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
+import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
 
 @Injectable()
 export class GastoFijoPagoMapper {
@@ -80,6 +81,9 @@ export class GastoFijoPagoMapper {
   ): GastoFijoPago {
     if (request.montoPago !== undefined) {
       gastoFijoPago.montoPago = request.montoPago;
+    }
+    if (request.medioPagoId !== undefined) {
+      gastoFijoPago.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
     }
     if (request.pagado !== undefined) {
       gastoFijoPago.pagado = request.pagado;

@@ -34,7 +34,7 @@ export class GastoFijoService {
   async findOne(id: number, usuarioId: number): Promise<GastoFijoDTO> {
     const gastoFijo = await this.gastoFijoRepository.findOne({
       where: { id: id },
-      relations: ['categoria', 'usuario'],
+      relations: ['categoria', 'usuario', 'medioPago'],
     });
 
     if (!gastoFijo) {

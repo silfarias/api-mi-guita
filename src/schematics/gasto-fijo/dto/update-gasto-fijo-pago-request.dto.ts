@@ -15,12 +15,10 @@ export class UpdateGastoFijoPagoRequestDto {
     type: Number, 
     nullable: true, 
     example: 5000.00,
-    minimum: 0.01
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0.01)
   montoPago?: number;
 
   @ApiProperty({ 
