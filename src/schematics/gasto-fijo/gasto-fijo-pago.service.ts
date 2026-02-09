@@ -28,7 +28,7 @@ export class GastoFijoPagoService {
   async findOne(id: number, usuarioId: number): Promise<GastoFijoPagoDTO> {
     const gastoFijoPago = await this.gastoFijoPagoRepository.findOne({
       where: { id: id },
-      relations: ['gastoFijo', 'gastoFijo.categoria', 'gastoFijo.usuario', 'infoInicial', 'infoInicial.usuario'],
+      relations: ['gastoFijo', 'gastoFijo.categoria', 'gastoFijo.medioPago', 'gastoFijo.usuario', 'infoInicial', 'infoInicial.usuario'],
     });
 
     if (!gastoFijoPago) {
@@ -62,7 +62,11 @@ export class GastoFijoPagoService {
   ): Promise<PagosGastoFijoDTO> {
     const infoInicial = await this.infoInicialRepository.findOne({
       where: { id: infoInicialId },
-      relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
+      relations: [
+        'usuario', 
+        'infoInicialMedioPagos', 
+        'infoInicialMedioPagos.medioPago'
+      ],
     });
 
     if (!infoInicial) {
@@ -311,6 +315,7 @@ export class GastoFijoPagoService {
           const gastoFijoPago = new GastoFijoPago();
           gastoFijoPago.gastoFijo = gastoFijo;
           gastoFijoPago.infoInicial = infoInicial;
+          gastoFijoPago.medioPago = null;
           gastoFijoPago.montoPago = 0;
           gastoFijoPago.pagado = false;
           return gastoFijoPago;

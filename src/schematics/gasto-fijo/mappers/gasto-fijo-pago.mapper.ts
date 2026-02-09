@@ -15,6 +15,7 @@ import { GastoFijoMapper } from './gasto-fijo.mapper';
 import { InfoInicialMapper } from 'src/schematics/info-inicial/mappers/info-inicial.mapper';
 import { GastoFijo } from '../entities/gasto-fijo.entity';
 import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
+import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
 
 @Injectable()
 export class GastoFijoPagoMapper {
@@ -22,6 +23,8 @@ export class GastoFijoPagoMapper {
     @Inject(forwardRef(() => GastoFijoMapper))
     private gastoFijoMapper: GastoFijoMapper,
     private infoInicialMapper: InfoInicialMapper,
+    private medioPagoMapper: MedioPagoMapper
+
   ) {}
 
   async entity2DTO(gastoFijoPago: GastoFijoPago): Promise<GastoFijoPagoDTO> {
@@ -101,6 +104,7 @@ export class GastoFijoPagoMapper {
               id: pagoEntity.id,
               montoPago: Number(pagoEntity.montoPago),
               pagado: pagoEntity.pagado,
+              medioPago: pagoEntity.medioPago ? await this.medioPagoMapper.entity2DTO(pagoEntity.medioPago) : undefined,
             }
           : { id: undefined, montoPago: 0, pagado: false };
 

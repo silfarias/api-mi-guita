@@ -38,6 +38,14 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       queryBuilder.andWhere('gastoFijo.activo = :activo', { activo: request.activo });
     }
 
+    if (request.esDebitoAutomatico !== undefined) {
+      queryBuilder.andWhere('gastoFijo.esDebitoAutomatico = :esDebitoAutomatico', { esDebitoAutomatico: request.esDebitoAutomatico });
+    }
+
+    if (request.medioPagoId !== undefined) {
+      queryBuilder.andWhere('medioPago.id = :medioPagoId', { medioPagoId: request.medioPagoId });
+    }
+
     queryBuilder.orderBy('gastoFijo.nombre', 'ASC');
     queryBuilder.addOrderBy('gastoFijo.id', 'DESC');
 

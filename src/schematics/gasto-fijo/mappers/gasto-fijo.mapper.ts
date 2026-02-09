@@ -1,7 +1,7 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { GastoFijo } from '../entities/gasto-fijo.entity';
-import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from '../dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosResponseDTO } from '../dto/gasto-fijo.dto';
 import { CreateGastoFijoRequestDto } from '../dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from '../dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from '../dto/search-gasto-fijo-request.dto';
@@ -9,7 +9,6 @@ import { PageDto } from 'src/common/dto/page.dto';
 import { CategoriaMapper } from 'src/schematics/categoria/mappers/categoria.mapper';
 import { Categoria } from 'src/schematics/categoria/entities/categoria.entity';
 import { UsuarioMapper } from 'src/schematics/usuario/mappers/usuario.mapper';
-import { GastoFijoPagoMapper } from './gasto-fijo-pago.mapper';
 import { PageMetadataDto } from 'src/common/dto/page-metadata.dto';
 import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
 import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
@@ -20,26 +19,20 @@ export class GastoFijoMapper {
     private usuarioMapper: UsuarioMapper,
     private categoriaMapper: CategoriaMapper,
     private medioPagoMapper: MedioPagoMapper,
-    @Inject(forwardRef(() => GastoFijoPagoMapper))
-    private gastoFijoPagoMapper: GastoFijoPagoMapper,
   ) {}
 
   async entity2DTO(gastoFijo: GastoFijo): Promise<GastoFijoDTO> {
     const dto = plainToInstance(GastoFijoDTO, gastoFijo, {
       excludeExtraneousValues: true,
+      enableImplicitConversion: true,
     });
-    
-    // Mapear montoFijo a monto
-    dto.monto = gastoFijo.montoFijo || 0;
-    
+    dto.montoFijo = Number(gastoFijo.montoFijo ?? 0);
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
     }
-    
     if (gastoFijo.medioPago) {
       dto.medioPago = await this.medioPagoMapper.entity2DTO(gastoFijo.medioPago);
     }
-    
     return dto;
   }
 
@@ -58,58 +51,30 @@ export class GastoFijoMapper {
     return pageDto;
   }
 
-  async entity2MisGastosFijosDto(gastoFijo: GastoFijo): Promise<MisGastosFijosDTO> {
-    const dto = plainToInstance(MisGastosFijosDTO, gastoFijo, {
-      excludeExtraneousValues: true,
-    });
-    
-    // Mapear montoFijo a monto
-    dto.monto = gastoFijo.montoFijo || 0;
-    
-    if (gastoFijo.usuario) {
-      dto.usuario = await this.usuarioMapper.entity2DTO(gastoFijo.usuario);
-    }
-    if (gastoFijo.categoria) {
-      dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
-    }
-    if (gastoFijo.medioPago) {
-      dto.medioPago = await this.medioPagoMapper.entity2DTO(gastoFijo.medioPago);
-    }
-    if (gastoFijo.gastosFijosPagos && gastoFijo.gastosFijosPagos.length > 0) {
-      dto.pagos = await Promise.all(
-        gastoFijo.gastosFijosPagos.map(async (pago) => {
-          return await this.gastoFijoPagoMapper.entity2DTO(pago);
-        }),
-      );
-    } else {
-      dto.pagos = [];
-    }
-    return dto;
-  }
-
   async page2MisGastosFijosDto(
     request: SearchGastoFijoRequestDto,
     page: PageDto<GastoFijo>,
-  ): Promise<PageDto<MisGastosFijosDTO>> {
+  ): Promise<PageDto<GastoFijoDTO>> {
     const dtos = await Promise.all(
-      page.data.map(async (gastoFijo) => {
-        return this.entity2MisGastosFijosDto(gastoFijo);
-      }),
+      page.data.map((gastoFijo) => this.entity2DTO(gastoFijo)),
     );
-    const pageDto = new PageDto<MisGastosFijosDTO>(dtos, page.metadata.count);
+    const pageDto = new PageDto<GastoFijoDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
     pageDto.metadata.sortBy = request.sortBy;
     return pageDto;
   }
 
+  /**
+   * Construye la respuesta de mis-gastos-fijos: solo usuario (cabecera), gastosFijos (GastoFijoDTO sin usuario ni pagos) y metadata.
+   */
   async page2MisGastosFijosResponseDto(
     request: SearchGastoFijoRequestDto,
     page: PageDto<GastoFijo>,
     usuario: any,
   ): Promise<MisGastosFijosResponseDTO> {
     const usuarioDTO = await this.usuarioMapper.entity2DTO(usuario);
-    const gastosFijos = await Promise.all(
-      page.data.map(async (gastoFijo) => this.entity2MisGastosFijosDto(gastoFijo)),
+    const gastosFijos: GastoFijoDTO[] = await Promise.all(
+      page.data.map((gastoFijo) => this.entity2DTO(gastoFijo)),
     );
     const metadata = new PageMetadataDto(page.metadata.count);
     metadata.setPaginationData(request.getPageNumber(), request.getTake());
@@ -119,7 +84,6 @@ export class GastoFijoMapper {
     response.usuario = usuarioDTO;
     response.gastosFijos = gastosFijos;
     response.metadata = metadata;
-
     return response;
   }
 

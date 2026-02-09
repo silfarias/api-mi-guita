@@ -3,6 +3,7 @@ import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose, Type } from 'class-transformer';
 import { GastoFijoDTO } from './gasto-fijo.dto';
 import { InfoInicialDTO } from 'src/schematics/info-inicial/dto/info-inicial.dto';
+import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
 
 export class GastoFijoPagoDTO extends CommonDTO {
 
@@ -15,6 +16,11 @@ export class GastoFijoPagoDTO extends CommonDTO {
   @Expose()
   @Type(() => InfoInicialDTO)
   infoInicial: InfoInicialDTO;
+
+  @ApiProperty({ description: 'Medio de pago asociado', type: () => MedioPagoDTO, required: false })
+  @Expose()
+  @Type(() => MedioPagoDTO)
+  medioPago?: MedioPagoDTO;
 
   @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes', example: 5000.00 })
   @Expose()
@@ -38,6 +44,11 @@ export class PagoSimpleDTO {
   @ApiProperty({ description: 'Indica si el gasto fijo ya fue pagado para este mes' })
   @Expose()
   pagado: boolean;
+
+  @ApiProperty({ description: 'Medio de pago asociado', type: () => MedioPagoDTO, required: false })
+  @Expose()
+  @Type(() => MedioPagoDTO)
+  medioPago?: MedioPagoDTO;
 
 }
 

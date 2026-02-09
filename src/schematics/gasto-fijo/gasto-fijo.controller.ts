@@ -27,8 +27,7 @@ import { CreateGastoFijoRequestDto } from './dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
-import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 

@@ -19,6 +19,7 @@ import { CategoriaModule } from '../categoria/categoria.module';
 import { UsuarioModule } from '../usuario/usuario.module';
 import { InfoInicialModule } from '../info-inicial/info-inicial.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
+import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { MedioPagoModule } from '../medio-pago/medio-pago.module';
     GastoFijoMapper,
     GastoFijoPagoMapper,
     ResumenPagoGastoFijoMapper,
+    MedioPagoMapper,
   ],
   exports: [
     GastoFijoService,

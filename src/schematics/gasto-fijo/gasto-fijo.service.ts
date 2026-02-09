@@ -3,7 +3,7 @@ import { CreateGastoFijoRequestDto } from './dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
-import { GastoFijoDTO, MisGastosFijosDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
+import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
 import { PageDto } from 'src/common/dto/page.dto';

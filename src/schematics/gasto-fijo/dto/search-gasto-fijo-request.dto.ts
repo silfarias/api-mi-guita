@@ -27,4 +27,16 @@ export class SearchGastoFijoRequestDto extends BaseSearchDto {
   @Type(() => Boolean)
   @IsBoolean()
   activo?: boolean;
+
+  @ApiProperty({ description: 'Filtrar por gastos fijos de débito automático', type: Boolean, required: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  esDebitoAutomatico?: boolean;
+
+  @ApiProperty({ description: 'Filtrar por id del medio de pago', type: Number, required: false })
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  medioPagoId?: number;
 }
