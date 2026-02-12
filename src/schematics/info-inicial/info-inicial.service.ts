@@ -1,102 +1,82 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, HttpException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { CreateInfoInicialRequestDto } from './dto/create-info-inicial-request.dto';
-import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.dto';
-import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
-import { InfoInicialDTO } from './dto/info-inicial.dto';
-import { SaldosActualesDTO, SaldoActualDTO } from './dto/saldos-actuales.dto';
+
+import { PageDto } from 'src/common/dto/page.dto';
+import { GetEntityService } from 'src/common/services/get-entity.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
+import { ERRORS } from 'src/common/errors/errors-codes';
+import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
+
+import { Usuario } from '../usuario/entities/usuario.entity';
+import { MedioPago } from '../medio-pago/entities/medio-pago.entity';
+import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
+import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
+import { GastoFijoPagoService } from '../gasto-fijo/gasto-fijo-pago.service';
+import { ResumenPagoGastoFijoService } from '../gasto-fijo/resumen-pago-gasto-fijo.service';
+
+import { InfoInicial } from './entities/info-inicial.entity';
+import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
 import { InfoInicialMapper } from './mappers/info-inicial.mapper';
 import { InfoInicialRepository } from './repository/info-inicial.repository';
 import { InfoInicialMedioPagoRepository } from './repository/info-inicial-mediopago.repository';
-import { PageDto } from 'src/common/dto/page.dto';
-import { InfoInicial } from './entities/info-inicial.entity';
-import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
-import { ERRORS } from 'src/common/errors/errors-codes';
-import { UsuarioRepository } from '../usuario/repository/usuario.repository';
 import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
-import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
-import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
-import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
-import { ResumenPagoGastoFijoService } from '../gasto-fijo/resumen-pago-gasto-fijo.service';
-import { GastoFijoPagoService } from '../gasto-fijo/gasto-fijo-pago.service';
+import { InfoInicialDTO } from './dto/info-inicial.dto';
+import { CreateInfoInicialRequestDto } from './dto/create-info-inicial-request.dto';
+import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.dto';
+import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
+import { SaldosActualesDTO, SaldoActualDTO } from './dto/saldos-actuales.dto';
+
+const RELATIONS = ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'] as const;
 
 @Injectable()
 export class InfoInicialService {
   constructor(
-    private infoInicialMapper: InfoInicialMapper,
-    private infoInicialRepository: InfoInicialRepository,
-    private infoInicialMedioPagoRepository: InfoInicialMedioPagoRepository,
-    private usuarioRepository: UsuarioRepository,
-    private medioPagoMapper: MedioPagoMapper,
-    private medioPagoRepository: MedioPagoRepository,
-    private movimientoRepository: MovimientoRepository,
-    private gastoFijoPagoService: GastoFijoPagoService,
-    private resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
-    private dataSource: DataSource,
+    private readonly infoInicialMapper: InfoInicialMapper,
+    private readonly infoInicialRepository: InfoInicialRepository,
+    private readonly infoInicialMedioPagoRepository: InfoInicialMedioPagoRepository,
+    private readonly medioPagoRepository: MedioPagoRepository,
+    private readonly movimientoRepository: MovimientoRepository,
+    private readonly medioPagoMapper: MedioPagoMapper,
+    private readonly getEntityService: GetEntityService,
+    private readonly errorHandler: ErrorHandlerService,
+    private readonly gastoFijoPagoService: GastoFijoPagoService,
+    private readonly resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
+    private readonly dataSource: DataSource,
   ) {}
 
-  async findOne(id: number): Promise<InfoInicialDTO> {
-    const infoInicial = await this.infoInicialRepository.findOneById(id);
-    return await this.infoInicialMapper.entity2DTO(infoInicial);
+  async findById(id: number): Promise<InfoInicialDTO> {
+    try {
+      const infoInicial = await this.getEntityService.findById(InfoInicial, id, [...RELATIONS]);
+      return this.infoInicialMapper.entity2DTO(infoInicial);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
+    }
   }
 
   async search(request: SearchInfoInicialRequestDto): Promise<PageDto<InfoInicialDTO>> {
-    const infoInicialPage = await this.infoInicialRepository.search(request);
-    return await this.infoInicialMapper.page2Dto(request, infoInicialPage);
+    try {
+      const page = await this.infoInicialRepository.search(request);
+      return this.infoInicialMapper.page2Dto(request, page);
+    } catch (error) {
+      this.errorHandler.handleError(error);
+    }
   }
 
   async findByUsuarioAutenticado(usuarioId: number): Promise<PageDto<InfoInicialDTO>> {
     const request = new SearchInfoInicialRequestDto();
     request.usuarioId = usuarioId;
-    const infoInicialPage = await this.infoInicialRepository.search(request);
-    return await this.infoInicialMapper.page2Dto(request, infoInicialPage);
+    return this.search(request);
   }
 
   async create(request: CreateInfoInicialRequestDto, usuarioId: number): Promise<InfoInicialDTO> {
     try {
-      const usuario = await this.usuarioRepository.findOne({
-        where: { id: usuarioId },
-      });
-      if (!usuario) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Usuario no encontrado',
-          details: JSON.stringify({ usuarioId }),
-        });
-      }
-      const existingInfo = await this.infoInicialRepository.findByUsuarioAndMes(
-        usuarioId,
-        request.anio,
-        request.mes,
-      );
-      if (existingInfo) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'Ya existe información inicial para este usuario, año y mes',
-          details: JSON.stringify({ usuarioId, anio: request.anio, mes: request.mes }),
-        });
-      }
-      const medioPagoIds = request.mediosPago.map(mp => mp.medioPagoId);
-      const mediosPagoExistentes = await this.medioPagoRepository
-        .createQueryBuilder('medioPago')
-        .where('medioPago.id IN (:...ids)', { ids: medioPagoIds })
-        .getMany();
-      if (mediosPagoExistentes.length !== medioPagoIds.length) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'Uno o más medios de pago no existen',
-          details: JSON.stringify({ medioPagoIds }),
-        });
-      }
-      const medioPagoIdsUnicos = new Set(medioPagoIds);
-      if (medioPagoIdsUnicos.size !== medioPagoIds.length) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'No se pueden repetir medios de pago',
-          details: 'Cada medio de pago solo puede aparecer una vez',
-        });
-      }
+      const usuario = await this.getEntityService.findById(Usuario, usuarioId);
+      await this.validateNoDuplicateInfoInicial(usuarioId, request.anio, request.mes);
 
+      const medioPagoIds = request.mediosPago.map((mp) => mp.medioPagoId);
+      const mediosPagoExistentes = await this.validateAndGetMediosPago(medioPagoIds);
+      this.validateMediosPagoUnicos(medioPagoIds);
 
       const newInfoInicial = this.infoInicialMapper.createDTO2Entity(request, usuario);
 
@@ -110,7 +90,6 @@ export class InfoInicialService {
           infoMedioPago.monto = mp.monto;
           return infoMedioPago;
         });
-
         await manager.getRepository(InfoInicialMedioPago).save(infoInicialMedioPagos);
 
         await this.gastoFijoPagoService.crearGastosFijosPagosAutomaticos(infoInicial, usuarioId, manager);
@@ -119,277 +98,179 @@ export class InfoInicialService {
         return infoInicial;
       });
 
-      const searchInfoInicial = await this.infoInicialRepository.findOne({
-        where: { id: infoInicialSaved.id },
-        relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
-      });
-
-      if (!searchInfoInicial) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id: infoInicialSaved.id }),
-        });
-      }
-
-      return this.infoInicialMapper.entity2DTO(searchInfoInicial);
+      const withRelations = await this.getEntityService.findById(InfoInicial, infoInicialSaved.id, [...RELATIONS]);
+      return this.infoInicialMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
-  async update(
-    id: number,
-    request: UpdateInfoInicialRequestDto,
-    usuarioId: number,
-  ): Promise<InfoInicialDTO> {
+  async update(id: number, request: UpdateInfoInicialRequestDto, usuarioId: number): Promise<InfoInicialDTO> {
     try {
-      // Verificar que la información inicial existe y pertenece al usuario
-      const infoInicial = await this.infoInicialRepository.findOne({
-        where: { id: id },
-        relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
-      });
+      const infoInicial = await this.getEntityService.findById(InfoInicial, id, [...RELATIONS]);
+      this.checkBelongsToUser(infoInicial, usuarioId, 'modificar');
 
-      if (!infoInicial) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
+      if (request.anio !== undefined || request.mes !== undefined) {
+        const newAnio = request.anio ?? infoInicial.anio;
+        const newMes = request.mes ?? infoInicial.mes;
+        await this.validateNoDuplicateInfoInicial(usuarioId, newAnio, newMes, id);
       }
 
-      if (infoInicial.usuario.id !== usuarioId) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-          details: 'No tienes permiso para modificar esta información inicial',
-        });
-      }
+      const updated = this.infoInicialMapper.updateDTO2Entity(infoInicial, request);
+      await this.infoInicialRepository.save(updated);
 
-      // Si se está cambiando el año o mes, validar que no exista otra info inicial con esos valores
-      if (request.anio || request.mes) {
-        const newAnio = request.anio || infoInicial.anio;
-        const newMes = request.mes || infoInicial.mes;
-
-        const existingInfo = await this.infoInicialRepository.findByUsuarioAndMes(
-          usuarioId,
-          newAnio,
-          newMes,
-        );
-
-        if (existingInfo && existingInfo.id !== id) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'Ya existe información inicial para este usuario, año y mes',
-            details: JSON.stringify({ usuarioId, anio: newAnio, mes: newMes }),
-          });
-        }
-      }
-
-      // Actualizar la información inicial
-      const updateInfoInicial = this.infoInicialMapper.updateDTO2Entity(infoInicial, request);
-      await this.infoInicialRepository.save(updateInfoInicial);
-
-      // Si se proporcionan nuevos medios de pago, actualizar los existentes
       if (request.mediosPago && request.mediosPago.length > 0) {
-        // Validar que todos los medios de pago existen
-        const medioPagoIds = request.mediosPago.map(mp => mp.medioPagoId);
-        const mediosPagoExistentes = await this.medioPagoRepository
-          .createQueryBuilder('medioPago')
-          .where('medioPago.id IN (:...ids)', { ids: medioPagoIds })
-          .getMany();
-        
-        if (mediosPagoExistentes.length !== medioPagoIds.length) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'Uno o más medios de pago no existen',
-            details: JSON.stringify({ medioPagoIds }),
-          });
-        }
+        const medioPagoIds = request.mediosPago.map((mp) => mp.medioPagoId);
+        const mediosPagoExistentes = await this.validateAndGetMediosPago(medioPagoIds);
+        this.validateMediosPagoUnicos(medioPagoIds);
 
-        // Validar que no haya medios de pago duplicados
-        const medioPagoIdsUnicos = new Set(medioPagoIds);
-        if (medioPagoIdsUnicos.size !== medioPagoIds.length) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'No se pueden repetir medios de pago',
-            details: 'Cada medio de pago solo puede aparecer una vez',
-          });
-        }
-
-        // Eliminar los medios de pago existentes con soft delete
-        if (infoInicial.infoInicialMedioPagos && infoInicial.infoInicialMedioPagos.length > 0) {
+        if (infoInicial.infoInicialMedioPagos?.length) {
           await this.infoInicialMedioPagoRepository.softRemove(infoInicial.infoInicialMedioPagos);
         }
 
-        // Crear los nuevos registros de InfoInicialMedioPago
-        const infoInicialMedioPagos: InfoInicialMedioPago[] = request.mediosPago.map(mp => {
+        const infoInicialMedioPagos: InfoInicialMedioPago[] = request.mediosPago.map((mp) => {
           const infoMedioPago = new InfoInicialMedioPago();
-          infoMedioPago.infoInicial = updateInfoInicial;
-          infoMedioPago.medioPago = mediosPagoExistentes.find(m => m.id === mp.medioPagoId)!;
+          infoMedioPago.infoInicial = updated;
+          infoMedioPago.medioPago = mediosPagoExistentes.find((m) => m.id === mp.medioPagoId)!;
           infoMedioPago.monto = mp.monto;
           return infoMedioPago;
         });
-
         await this.infoInicialMedioPagoRepository.save(infoInicialMedioPagos);
       }
 
-      // Buscar la información inicial actualizada
-      const searchInfoInicial = await this.infoInicialRepository.findOne({
-        where: { id: id },
-        relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
-      });
-
-      if (!searchInfoInicial) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      return this.infoInicialMapper.entity2DTO(searchInfoInicial);
+      const withRelations = await this.getEntityService.findById(InfoInicial, id, [...RELATIONS]);
+      return this.infoInicialMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
   async remove(id: number, usuarioId: number): Promise<string> {
-    const infoInicial = await this.infoInicialRepository.findOne({
-      where: { id: id },
-      relations: ['usuario'],
-    });
-
-    if (!infoInicial) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+    try {
+      const infoInicial = await this.getEntityService.findById(InfoInicial, id, ['usuario']);
+      this.checkBelongsToUser(infoInicial, usuarioId, 'eliminar');
+      await this.infoInicialRepository.softRemove(infoInicial);
+      return 'Información inicial eliminada correctamente';
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
-
-    if (infoInicial.usuario.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: 'No tienes permiso para eliminar esta información inicial',
-        details: JSON.stringify({ id }),
-      });
-    }
-
-    await this.infoInicialRepository.softRemove(infoInicial);
-    return 'Información inicial eliminada correctamente';
   }
 
   async findByUsuarioAndMes(usuarioId: number, anio: number, mes: string): Promise<InfoInicialDTO | null> {
     const infoInicial = await this.infoInicialRepository.findByUsuarioAndMes(usuarioId, anio, mes);
-    if (!infoInicial) {
-      return null;
-    }
-    return await this.infoInicialMapper.entity2DTO(infoInicial);
+    if (!infoInicial) return null;
+    return this.infoInicialMapper.entity2DTO(infoInicial);
   }
 
   async calcularSaldosActuales(id: number, usuarioId: number): Promise<SaldosActualesDTO> {
-    // Verificar que la información inicial existe y pertenece al usuario
-    const infoInicial = await this.infoInicialRepository.findOne({
-      where: { id: id },
-      relations: ['usuario', 'infoInicialMedioPagos', 'infoInicialMedioPagos.medioPago'],
-    });
+    try {
+      const infoInicial = await this.getEntityService.findById(InfoInicial, id, [...RELATIONS]);
+      this.checkBelongsToUser(infoInicial, usuarioId, 'ver los saldos de');
 
-    if (!infoInicial) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: 'Información inicial no encontrada',
-        details: JSON.stringify({ id }),
+      const movimientos = await this.movimientoRepository.find({
+        where: { infoInicial: { id: infoInicial.id } },
+        relations: ['medioPago'],
       });
-    }
 
-    if (infoInicial.usuario.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: 'No tienes permiso para ver los saldos de esta información inicial',
-        details: JSON.stringify({ id }),
-      });
-    }
+      const saldosMap = new Map<number, SaldoActualDTO>();
 
-    // Obtener todos los movimientos de esta información inicial
-    const movimientos = await this.movimientoRepository.find({
-      where: { infoInicial: { id: infoInicial.id } },
-      relations: ['medioPago'],
-    });
-
-    // Calcular saldos por medio de pago
-    const saldosMap = new Map<number, SaldoActualDTO>();
-
-    // Inicializar saldos con los montos iniciales
-    if (infoInicial.infoInicialMedioPagos) {
-      for (const infoMedioPago of infoInicial.infoInicialMedioPagos) {
-        const medioPagoDTO = await this.medioPagoMapper.entity2DTO(infoMedioPago.medioPago);
-        saldosMap.set(infoMedioPago.medioPago.id, {
-          medioPago: medioPagoDTO,
-          saldoInicial: Number(infoMedioPago.monto),
-          totalIngresos: 0,
-          totalEgresos: 0,
-          saldoActual: Number(infoMedioPago.monto),
-        });
-      }
-    }
-
-    // Calcular movimientos por medio de pago
-    for (const movimiento of movimientos) {
-      if (movimiento.medioPago && movimiento.medioPago.id) {
-        const medioPagoId = movimiento.medioPago.id;
-        
-        if (!saldosMap.has(medioPagoId)) {
-          const medioPagoDTO = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
-          saldosMap.set(medioPagoId, {
+      if (infoInicial.infoInicialMedioPagos?.length) {
+        for (const infoMedioPago of infoInicial.infoInicialMedioPagos) {
+          const medioPagoDTO = await this.medioPagoMapper.entity2DTO(infoMedioPago.medioPago);
+          saldosMap.set(infoMedioPago.medioPago.id, {
             medioPago: medioPagoDTO,
-            saldoInicial: 0,
+            saldoInicial: Number(infoMedioPago.monto),
             totalIngresos: 0,
             totalEgresos: 0,
-            saldoActual: 0,
+            saldoActual: Number(infoMedioPago.monto),
           });
         }
+      }
 
-        const saldo = saldosMap.get(medioPagoId)!;
-        const monto = Number(movimiento.monto);
-
-        if (movimiento.tipoMovimiento === TipoMovimientoEnum.INGRESO) {
-          saldo.totalIngresos += monto;
-        } else {
-          saldo.totalEgresos += monto;
+      for (const movimiento of movimientos) {
+        if (movimiento.medioPago?.id) {
+          const medioPagoId = movimiento.medioPago.id;
+          if (!saldosMap.has(medioPagoId)) {
+            const medioPagoDTO = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
+            saldosMap.set(medioPagoId, {
+              medioPago: medioPagoDTO,
+              saldoInicial: 0,
+              totalIngresos: 0,
+              totalEgresos: 0,
+              saldoActual: 0,
+            });
+          }
+          const saldo = saldosMap.get(medioPagoId)!;
+          const monto = Number(movimiento.monto);
+          if (movimiento.tipoMovimiento === TipoMovimientoEnum.INGRESO) {
+            saldo.totalIngresos += monto;
+          } else {
+            saldo.totalEgresos += monto;
+          }
         }
       }
+
+      for (const saldo of saldosMap.values()) {
+        saldo.saldoActual = saldo.saldoInicial + saldo.totalIngresos - saldo.totalEgresos;
+      }
+
+      const saldosPorMedioPago = Array.from(saldosMap.values());
+      const balanceTotal = saldosPorMedioPago.reduce((sum, s) => sum + s.saldoActual, 0);
+      return { saldosPorMedioPago, balanceTotal };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
-
-    // Calcular saldos actuales
-    for (const saldo of saldosMap.values()) {
-      saldo.saldoActual = saldo.saldoInicial + saldo.totalIngresos - saldo.totalEgresos;
-    }
-
-    const saldosPorMedioPago = Array.from(saldosMap.values());
-    const balanceTotal = saldosPorMedioPago.reduce((sum, saldo) => sum + saldo.saldoActual, 0);
-
-    return {
-      saldosPorMedioPago,
-      balanceTotal,
-    };
   }
 
+  /** Alias para compatibilidad */
+  findOne(id: number): Promise<InfoInicialDTO> {
+    return this.findById(id);
+  }
+
+  private async validateNoDuplicateInfoInicial(
+    usuarioId: number,
+    anio: number,
+    mes: string,
+    excludeId?: number,
+  ): Promise<void> {
+    const existing = await this.infoInicialRepository.findByUsuarioAndMes(usuarioId, anio, mes);
+    if (existing && existing.id !== excludeId) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, {
+        message: 'Ya existe información inicial para este usuario, año y mes',
+        usuarioId,
+        anio,
+        mes,
+      });
+    }
+  }
+
+  private async validateAndGetMediosPago(medioPagoIds: number[]): Promise<MedioPago[]> {
+    const mediosPago = await this.medioPagoRepository
+      .createQueryBuilder('medioPago')
+      .where('medioPago.id IN (:...ids)', { ids: medioPagoIds })
+      .getMany();
+    if (mediosPago.length !== medioPagoIds.length) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, {
+        message: 'Uno o más medios de pago no existen',
+        medioPagoIds,
+      });
+    }
+    return mediosPago;
+  }
+
+  private validateMediosPagoUnicos(medioPagoIds: number[]): void {
+    if (new Set(medioPagoIds).size !== medioPagoIds.length) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'No se pueden repetir medios de pago');
+    }
+  }
+
+  private checkBelongsToUser(infoInicial: InfoInicial, usuarioId: number, accion: string): void {
+    if (infoInicial.usuario.id !== usuarioId) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, `No tienes permiso para ${accion} esta información inicial`);
+    }
+  }
 }

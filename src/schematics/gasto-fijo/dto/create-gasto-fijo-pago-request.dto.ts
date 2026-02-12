@@ -26,11 +26,11 @@ export class CreateGastoFijoPagoRequestDto {
   @IsNumber()
   infoInicialId: number;
 
-  @ApiProperty({ description: 'ID del medio de pago', type: Number, required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'ID del medio de pago', type: Number, required: true })
+  @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
-  medioPagoId?: number;
+  medioPagoId: number;
 
   @ApiProperty({ 
     description: 'Monto pagado del gasto fijo para este mes', 

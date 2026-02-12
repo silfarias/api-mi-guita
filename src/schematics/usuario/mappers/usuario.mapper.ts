@@ -1,20 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+import * as bcrypt from 'bcrypt';
+
+import { PageDto } from 'src/common/dto/page.dto';
+
 import { Usuario } from '../entities/usuario.entity';
-import { UsuarioDTO, UsuarioSimpleDTO } from '../dto/usuario.dto';
-import { CreateUsuarioRequestDto, CreateUsuarioRequestDtoWithPersonaId } from '../dto/create-usuario-request.dto';
+import { UsuarioDTO } from '../dto/usuario.dto';
+import { CreateUsuarioRequestDto, CreateUsuarioWithPersonaIdRequestDto } from '../dto/create-usuario-request.dto';
 import { UpdateUsuarioRequestDto } from '../dto/update-usuario-request.dto';
 import { SearchUsuarioRequestDto } from '../dto/search-usuario-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
-import * as bcrypt from 'bcrypt';
-import { PersonaMapper } from 'src/schematics/persona/mappers/persona.mapper';
+
 import { Persona } from 'src/schematics/persona/entities/persona.entity';
+import { PersonaMapper } from 'src/schematics/persona/mappers/persona.mapper';
 
 @Injectable()
 export class UsuarioMapper {
-  constructor(
-    private personaMapper: PersonaMapper,
-  ) { }
+  constructor(private readonly personaMapper: PersonaMapper) {}
+
   async entity2DTO(usuario: Usuario): Promise<UsuarioDTO> {
     const dto = plainToInstance(UsuarioDTO, usuario, {
       excludeExtraneousValues: true,
@@ -29,59 +31,50 @@ export class UsuarioMapper {
     request: SearchUsuarioRequestDto,
     page: PageDto<Usuario>,
   ): Promise<PageDto<UsuarioDTO>> {
-    const dtos = await Promise.all(
-      page.data.map(async (usuario) => {
-        return this.entity2DTO(usuario);
-      }),
-    );
+    const dtos = await Promise.all(page.data.map((u) => this.entity2DTO(u)));
     const pageDto = new PageDto<UsuarioDTO>(dtos, page.metadata.count);
-    pageDto.metadata.setPaginationData(1, 10);
+    pageDto.metadata.setPaginationData(
+      request.getPageNumber(),
+      request.getTake(),
+    );
     pageDto.metadata.sortBy = request.sortBy;
     return pageDto;
   }
 
-  async createDTO2Entity(request: CreateUsuarioRequestDto, persona: Persona): Promise<Usuario> {
-    const newUsuario: Usuario = new Usuario();
-    newUsuario.nombreUsuario = request.nombreUsuario;
-    newUsuario.contrasena = await bcrypt.hash(request.contrasena, 10);
-    newUsuario.email = request.email;
-    newUsuario.activo = true; // Siempre se crea como activo
-    newUsuario.persona = persona;
-    return newUsuario;
+  async createDTO2Entity(
+    request: CreateUsuarioRequestDto,
+  ): Promise<Usuario> {
+    const usuario = new Usuario();
+    usuario.nombreUsuario = request.nombreUsuario;
+    usuario.email = request.email;
+    usuario.contrasena = await bcrypt.hash(request.contrasena, 10);
+    return usuario;
   }
 
-  async createDTO2EntityWithPersonaId(request: CreateUsuarioRequestDtoWithPersonaId, persona: Persona): Promise<Usuario> {
-    const newUsuario: Usuario = new Usuario();
-    newUsuario.nombreUsuario = request.nombreUsuario;
-    newUsuario.contrasena = await bcrypt.hash(request.contrasena, 10);
-    newUsuario.email = request.email;
-    newUsuario.activo = true; // Siempre se crea como activo
-    newUsuario.persona = persona;
-    return newUsuario;
+  async createDTO2EntityWithPersonaId(
+    request: CreateUsuarioWithPersonaIdRequestDto,
+  ): Promise<Usuario> {
+    const usuario = new Usuario();
+    usuario.nombreUsuario = request.nombreUsuario;
+    usuario.email = request.email;
+    usuario.contrasena = await bcrypt.hash(request.contrasena, 10);
+    usuario.persona = Persona.fromId(request.personaId);
+    return usuario;
   }
 
   async updateDTO2Entity(
-    editUsuario: Usuario,
+    usuario: Usuario,
     request: UpdateUsuarioRequestDto,
   ): Promise<Usuario> {
-    if (request.nombreUsuario) {
-      editUsuario.nombreUsuario = request.nombreUsuario;
-    }
-    if (request.contrasena) {
-      editUsuario.contrasena = await bcrypt.hash(request.contrasena, 10);
+    if (request.nombreUsuario !== undefined) {
+      usuario.nombreUsuario = request.nombreUsuario;
     }
     if (request.email !== undefined) {
-      editUsuario.email = request.email;
+      usuario.email = request.email;
     }
-    if (request.activo !== undefined) {
-      editUsuario.activo = request.activo !== undefined ? request.activo : true;
+    if (request.contrasena != null && request.contrasena !== '') {
+      usuario.contrasena = await bcrypt.hash(request.contrasena, 10);
     }
-    return editUsuario;
-  }
-
-  async entity2SimpleDTO(usuario: Usuario): Promise<UsuarioSimpleDTO> {
-    return plainToInstance(UsuarioSimpleDTO, usuario, {
-      excludeExtraneousValues: true,
-    });
+    return usuario;
   }
 }

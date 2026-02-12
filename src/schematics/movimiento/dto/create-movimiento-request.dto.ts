@@ -8,7 +8,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'ID de la información inicial (mes) al que pertenece el movimiento', 
     type: Number, 
-    nullable: false, 
+    required: true, 
     example: 1 
   })
   @IsNotEmpty()
@@ -19,7 +19,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'Fecha del movimiento (opcional, si no se envía se usa la fecha actual)', 
     type: Date, 
-    nullable: false
+    required: false
   })
   @IsOptional()
   @IsDate()
@@ -28,7 +28,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'Tipo de movimiento', 
     enum: TipoMovimientoEnum, 
-    nullable: false, 
+    required: true, 
     example: TipoMovimientoEnum.EGRESO 
   })
   @IsNotEmpty()
@@ -38,7 +38,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'Descripción del movimiento', 
     type: String, 
-    nullable: false, 
+    required: true, 
     example: 'Pan relleno' 
   })
   @IsNotEmpty()
@@ -48,7 +48,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'ID de la categoría del movimiento', 
     type: Number, 
-    nullable: false, 
+    required: true, 
     example: 1 
   })
   @IsNotEmpty()
@@ -59,7 +59,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'Monto del movimiento', 
     type: Number, 
-    nullable: false, 
+    required: true, 
     example: 3600,
     minimum: 0.01
   })
@@ -72,7 +72,7 @@ export class CreateMovimientoRequestDto {
   @ApiProperty({ 
     description: 'ID del medio de pago utilizado', 
     type: Number, 
-    nullable: false, 
+    required: true, 
     example: 1 
   })
   @IsNotEmpty()

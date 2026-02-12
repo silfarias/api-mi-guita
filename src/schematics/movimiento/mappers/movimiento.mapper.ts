@@ -57,26 +57,6 @@ export class MovimientoMapper {
     return dto;
   }
 
-  // async entity2EnrichedDTO(movimiento: Movimiento): Promise<MovimientoEnrichedDTO> {
-  //   const dto = plainToInstance(MovimientoEnrichedDTO, movimiento, {
-  //     excludeExtraneousValues: true,
-  //   });
-    
-  //   if (movimiento.infoInicial) {
-  //     dto.infoInicial = await this.infoInicialMapper.entity2DTO(movimiento.infoInicial);
-  //   }
-    
-  //   if (movimiento.categoria) {
-  //     dto.categoria = await this.categoriaMapper.entity2DTO(movimiento.categoria);
-  //   }
-    
-  //   if (movimiento.medioPago) {
-  //     dto.medioPago = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
-  //   }
-    
-  //   return dto;
-  // }
-
   async page2Dto(
     request: SearchMovimientoRequestDto,
     page: PageDto<Movimiento>,

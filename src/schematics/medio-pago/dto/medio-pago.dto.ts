@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose } from 'class-transformer';
+
+import { CommonDTO } from 'src/common/dto/common.dto';
 import { TipoMedioPagoEnum } from 'src/common/enums/tipo-medio-pago-enum';
 
 export class MedioPagoDTO extends CommonDTO {

@@ -1,6 +1,6 @@
+import { Column, Entity, OneToOne } from 'typeorm';
 import { BaseEntity } from 'src/common/models/baseentity';
 import { Usuario } from 'src/schematics/usuario/entities/usuario.entity';
-import { Column, Entity, OneToOne } from 'typeorm';
 
 @Entity('user_02_cab_persona')
 export class Persona extends BaseEntity {
@@ -8,7 +8,7 @@ export class Persona extends BaseEntity {
   @Column({ name: 'user02_nombre', type: 'varchar', length: 100 })
   nombre: string;
 
-  @Column({ name: 'user02_apellido', type: 'varchar', length: 255 })
+  @Column({ name: 'user02_apellido', type: 'varchar', length: 100 })
   apellido: string;
 
   @OneToOne(() => Usuario, (usuario) => usuario.persona)

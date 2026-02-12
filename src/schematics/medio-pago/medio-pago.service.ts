@@ -1,159 +1,105 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpException } from '@nestjs/common';
+
+import { PageDto } from 'src/common/dto/page.dto';
+import { GetEntityService } from 'src/common/services/get-entity.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
+import { ERRORS } from 'src/common/errors/errors-codes';
+
+import { MedioPago } from './entities/medio-pago.entity';
+import { MedioPagoMapper } from './mappers/medio-pago.mapper';
+import { MedioPagoRepository } from './repository/medio-pago.repository';
+import { MedioPagoDTO } from './dto/medio-pago.dto';
 import { CreateMedioPagoRequestDto } from './dto/create-medio-pago-request.dto';
 import { UpdateMedioPagoRequestDto } from './dto/update-medio-pago-request.dto';
 import { SearchMedioPagoRequestDto } from './dto/search-medio-pago-request.dto';
-import { MedioPagoDTO } from './dto/medio-pago.dto';
-import { MedioPagoMapper } from './mappers/medio-pago.mapper';
-import { MedioPagoRepository } from './repository/medio-pago.repository';
-import { PageDto } from 'src/common/dto/page.dto';
-import { ERRORS } from 'src/common/errors/errors-codes';
 
 @Injectable()
 export class MedioPagoService {
   constructor(
-    private medioPagoMapper: MedioPagoMapper,
-    private medioPagoRepository: MedioPagoRepository,
+    private readonly medioPagoMapper: MedioPagoMapper,
+    private readonly medioPagoRepository: MedioPagoRepository,
+    private readonly getEntityService: GetEntityService,
+    private readonly errorHandler: ErrorHandlerService,
   ) {}
 
-  async findOne(id: number): Promise<MedioPagoDTO> {
-    const medioPago = await this.medioPagoRepository.findOneById(id);
-    return await this.medioPagoMapper.entity2DTO(medioPago);
+  async findById(id: number): Promise<MedioPagoDTO> {
+    try {
+      const medioPago = await this.getEntityService.findById(MedioPago, id);
+      return this.medioPagoMapper.entity2DTO(medioPago);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
+    }
   }
 
   async search(request: SearchMedioPagoRequestDto): Promise<PageDto<MedioPagoDTO>> {
-    const medioPagoPage = await this.medioPagoRepository.search(request);
-    return this.medioPagoMapper.page2Dto(request, medioPagoPage);
+    try {
+      const page = await this.medioPagoRepository.search(request);
+      return this.medioPagoMapper.page2Dto(request, page);
+    } catch (error) {
+      this.errorHandler.handleError(error);
+    }
   }
 
   async create(request: CreateMedioPagoRequestDto): Promise<MedioPagoDTO> {
     try {
-      // Validar que no exista un medio de pago con el mismo nombre
-      const existingMedioPago = await this.medioPagoRepository.findOne({
-        where: {
-          nombre: request.nombre,
-        },
-      });
+      await this.validateUniqueNombre(request.nombre);
 
-      if (existingMedioPago) {
-        throw new BadRequestException({
-          code: ERRORS.ENTITY.NAME_ALREADY_EXISTS.CODE,
-          message: 'Ya existe un medio de pago con ese nombre',
-          details: `El medio de pago "${request.nombre}" ya está registrado`,
-        });
-      }
-
-      // Crear el medio de pago
       const newMedioPago = this.medioPagoMapper.createDTO2Entity(request);
-      const medioPagoSaved = await this.medioPagoRepository.save(newMedioPago);
+      const saved = await this.medioPagoRepository.save(newMedioPago);
 
-      // Buscar el medio de pago guardado
-      const searchMedioPago = await this.medioPagoRepository.findOne({
-        where: { id: medioPagoSaved.id },
-      });
-
-      if (!searchMedioPago) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id: medioPagoSaved.id }),
-        });
-      }
-
-      return this.medioPagoMapper.entity2DTO(searchMedioPago);
+      const withRelations = await this.getEntityService.findById(MedioPago, saved.id);
+      return this.medioPagoMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
-  async update(
-    id: number,
-    request: UpdateMedioPagoRequestDto,
-  ): Promise<MedioPagoDTO> {
+  async update(id: number, request: UpdateMedioPagoRequestDto): Promise<MedioPagoDTO> {
     try {
-      // Verificar que el medio de pago existe
-      const medioPago = await this.medioPagoRepository.findOne({
-        where: { id: id },
-      });
+      const medioPago = await this.getEntityService.findById(MedioPago, id);
 
-      if (!medioPago) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
+      if (request.nombre !== undefined && request.nombre !== medioPago.nombre) {
+        await this.validateUniqueNombre(request.nombre);
       }
 
-      // Si se está cambiando el nombre, validar que no exista otro medio de pago con ese nombre
-      if (request.nombre && request.nombre !== medioPago.nombre) {
-        const existingMedioPago = await this.medioPagoRepository.findOne({
-          where: {
-            nombre: request.nombre,
-          },
-        });
+      const updated = this.medioPagoMapper.updateDTO2Entity(medioPago, request);
+      await this.medioPagoRepository.save(updated);
 
-        if (existingMedioPago) {
-          throw new BadRequestException({
-            code: ERRORS.ENTITY.NAME_ALREADY_EXISTS.CODE,
-            message: 'Ya existe un medio de pago con ese nombre',
-            details: `El medio de pago "${request.nombre}" ya está registrado`,
-          });
-        }
-      }
-
-      // Actualizar el medio de pago
-      const updateMedioPago = this.medioPagoMapper.updateDTO2Entity(medioPago, request);
-      await this.medioPagoRepository.save(updateMedioPago);
-
-      // Buscar el medio de pago actualizado
-      const searchMedioPago = await this.medioPagoRepository.findOne({
-        where: { id: id },
-      });
-
-      if (!searchMedioPago) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      return this.medioPagoMapper.entity2DTO(searchMedioPago);
+      const withRelations = await this.getEntityService.findById(MedioPago, id);
+      return this.medioPagoMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
   async remove(id: number): Promise<string> {
-    const medioPago = await this.medioPagoRepository.findOne({
-      where: { id: id },
-    });
-
-    if (!medioPago) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+    try {
+      const medioPago = await this.getEntityService.findById(MedioPago, id);
+      await this.medioPagoRepository.softRemove(medioPago);
+      return 'Medio de pago eliminado correctamente';
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
+  }
 
-    await this.medioPagoRepository.softRemove(medioPago);
-    return 'Medio de pago eliminado correctamente';
+  /** Alias para compatibilidad: obtener medio de pago por ID como DTO */
+  findOne(id: number): Promise<MedioPagoDTO> {
+    return this.findById(id);
+  }
+
+  private async validateUniqueNombre(nombre: string): Promise<void> {
+    const existing = await this.medioPagoRepository.findOne({
+      where: { nombre },
+    });
+    if (existing) {
+      this.errorHandler.throwConflict(
+        ERRORS.ENTITY.NAME_ALREADY_EXISTS,
+        `El medio de pago "${nombre}" ya está registrado`,
+      );
+    }
   }
 }

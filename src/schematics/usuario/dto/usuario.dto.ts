@@ -1,23 +1,23 @@
+import { Expose, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { CommonDTO } from 'src/common/dto/common.dto';
-import { Expose, Type } from 'class-transformer';
 import { PersonaDTO } from 'src/schematics/persona/dto/persona.dto';
 
 export class UsuarioDTO extends CommonDTO {
 
-  @ApiProperty({ description: 'Nombre de usuario', example: 'usuario123' })
+  @ApiProperty({ description: 'Nombre de usuario', type: String })
   @Expose()
   nombreUsuario: string;
 
-  @ApiProperty({ description: 'Email del usuario', example: 'usuario@ejemplo.com' })
+  @ApiProperty({ description: 'Email del usuario', type: String })
   @Expose()
   email: string;
 
-  @ApiProperty({ description: 'Estado activo del usuario', example: true })
+  @ApiProperty({ description: 'Estado activo del usuario', type: Boolean, default: true })
   @Expose()
   activo: boolean;
 
-  @ApiProperty({ description: 'Último acceso del usuario', example: '2024-01-01T00:00:00.000Z', required: false })
+  @ApiProperty({ description: 'Último acceso del usuario', type: Date })
   @Expose()
   ultimoAcceso?: Date;
 

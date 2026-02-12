@@ -1,13 +1,13 @@
 import {
   Controller,
-  Post,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
   Body,
-  ParseIntPipe,
   Query,
+  ParseIntPipe,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -22,135 +22,128 @@ import {
   ApiUnauthorizedResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
+
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { PageDto } from 'src/common/dto/page.dto';
+
 import { InfoInicialService } from './info-inicial.service';
+import { InfoInicialDTO } from './dto/info-inicial.dto';
+import { SaldosActualesDTO } from './dto/saldos-actuales.dto';
 import { CreateInfoInicialRequestDto } from './dto/create-info-inicial-request.dto';
 import { UpdateInfoInicialRequestDto } from './dto/update-info-inicial-request.dto';
 import { SearchInfoInicialRequestDto } from './dto/search-info-inicial-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
-import { InfoInicialDTO } from './dto/info-inicial.dto';
-import { SaldosActualesDTO } from './dto/saldos-actuales.dto';
-import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Info Inicial')
 @Controller('info-inicial')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('authorization')
 export class InfoInicialController {
-  constructor(
-    private infoInicialService: InfoInicialService,
-  ) {}
+  constructor(private readonly infoInicialService: InfoInicialService) {}
 
   @Get('search')
-  @ApiOperation({ summary: 'Buscar información inicial' })
-  @ApiOkResponse({ 
-    type: PageDto<InfoInicialDTO>, 
-    description: 'Lista paginada de Información Inicial con datos del usuario' 
+  @ApiOperation({
+    summary: 'Buscar información inicial',
+    description: 'Permite buscar información inicial por usuario, año o mes y retorna una lista paginada',
   })
+  @ApiOkResponse({ description: 'Lista paginada de información inicial', type: PageDto })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async search(
-    @Query() request: SearchInfoInicialRequestDto
-  ): Promise<PageDto<InfoInicialDTO>> {
-    const reqDto = plainToInstance(SearchInfoInicialRequestDto, request);
-    return await this.infoInicialService.search(reqDto);
+  async search(@Query() request: SearchInfoInicialRequestDto): Promise<PageDto<InfoInicialDTO>> {
+    const reqDto = plainToInstance(SearchInfoInicialRequestDto, request, {
+      enableImplicitConversion: true,
+    });
+    return this.infoInicialService.search(reqDto);
   }
 
   @Get('por-usuario')
-  @ApiOperation({ summary: 'Obtener información inicial del usuario autenticado' })
-  @ApiOkResponse({ 
-    type: PageDto<InfoInicialDTO>, 
-    description: 'Lista paginada de Información Inicial del usuario autenticado con datos del usuario' 
+  @ApiOperation({
+    summary: 'Obtener información inicial del usuario autenticado',
+    description: 'Retorna la lista paginada de información inicial del usuario autenticado',
   })
+  @ApiOkResponse({ description: 'Lista paginada de información inicial del usuario', type: PageDto })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async findByUsuarioAutenticado(
-    @Request() req: any,
-  ): Promise<PageDto<InfoInicialDTO>> {
-    return await this.infoInicialService.findByUsuarioAutenticado(req.user.id);
+  async findByUsuarioAutenticado(@Request() req: { user: { id: number } }): Promise<PageDto<InfoInicialDTO>> {
+    return this.infoInicialService.findByUsuarioAutenticado(req.user.id);
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear información inicial' })
-  @ApiBody({
-    type: CreateInfoInicialRequestDto,
-    description: 'Datos de la información inicial del mes',
+  @ApiOperation({
+    summary: 'Crear información inicial',
+    description: 'Crea la información inicial del mes (medios de pago con montos, gastos fijos, resumen)',
   })
-  @ApiOkResponse({
-    type: InfoInicialDTO,
-    description: 'Información inicial creada correctamente',
-  })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
+  @ApiBody({ type: CreateInfoInicialRequestDto, description: 'Datos de la información inicial del mes' })
+  @ApiOkResponse({ description: 'Información inicial creada correctamente', type: InfoInicialDTO })
+  @ApiBadRequestResponse({ description: 'Datos de entrada no válidos' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async create(
-    @Body() createInfoInicialRequestDto: CreateInfoInicialRequestDto,
-    @Request() req: any,
+    @Body() body: CreateInfoInicialRequestDto,
+    @Request() req: { user: { id: number } },
   ): Promise<InfoInicialDTO> {
-    return await this.infoInicialService.create(createInfoInicialRequestDto, req.user.id);
+    return this.infoInicialService.create(body, req.user.id);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener información inicial por ID' })
-  @ApiParam({ name: 'id', required: true, description: 'ID de la Información Inicial' })
-  @ApiOkResponse({
-    type: InfoInicialDTO,
-    description: 'Información inicial obtenida correctamente',
+  @ApiOperation({
+    summary: 'Obtener información inicial por ID',
+    description: 'Permite obtener una información inicial por su ID',
   })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró la información inicial' })
+  @ApiParam({ name: 'id', description: 'ID de la información inicial' })
+  @ApiOkResponse({ description: 'Información inicial encontrada', type: InfoInicialDTO })
+  @ApiNotFoundResponse({ description: 'Información inicial no encontrada' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<InfoInicialDTO> {
-    return await this.infoInicialService.findOne(id);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar información inicial' })
-  @ApiParam({ name: 'id', required: true, description: 'ID de la Información Inicial' })
-  @ApiBody({
-    type: UpdateInfoInicialRequestDto,
-    description: 'Datos actualizados de la información inicial',
-  })
-  @ApiOkResponse({
-    type: InfoInicialDTO,
-    description: 'Información inicial actualizada correctamente',
-  })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró la información inicial' })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateInfoInicialRequestDto: UpdateInfoInicialRequestDto,
-    @Request() req: any,
-  ): Promise<InfoInicialDTO> {
-    return await this.infoInicialService.update(id, updateInfoInicialRequestDto, req.user.id);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar información inicial' })
-  @ApiParam({ name: 'id', required: true, description: 'ID de la Información Inicial' })
-  @ApiOkResponse({ description: 'Información inicial eliminada correctamente' })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró la información inicial' })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async delete(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ): Promise<any> {
-    return await this.infoInicialService.remove(id, req.user.id);
+    return this.infoInicialService.findOne(id);
   }
 
   @Get(':id/saldos')
-  @ApiOperation({ summary: 'Obtener saldos actuales por medio de pago' })
-  @ApiParam({ name: 'id', required: true, description: 'ID de la Información Inicial' })
-  @ApiOkResponse({
-    type: SaldosActualesDTO,
-    description: 'Saldos actuales calculados correctamente',
+  @ApiOperation({
+    summary: 'Obtener saldos actuales por medio de pago',
+    description: 'Calcula los saldos actuales por medio de pago para la información inicial',
   })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró la información inicial' })
+  @ApiParam({ name: 'id', description: 'ID de la información inicial' })
+  @ApiOkResponse({ description: 'Saldos actuales calculados', type: SaldosActualesDTO })
+  @ApiNotFoundResponse({ description: 'Información inicial no encontrada' })
+  @ApiBadRequestResponse({ description: 'Sin permiso para ver los saldos' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async calcularSaldosActuales(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
+    @Request() req: { user: { id: number } },
   ): Promise<SaldosActualesDTO> {
-    return await this.infoInicialService.calcularSaldosActuales(id, req.user.id);
+    return this.infoInicialService.calcularSaldosActuales(id, req.user.id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Actualizar información inicial',
+    description: 'Permite actualizar los datos de una información inicial existente',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la información inicial' })
+  @ApiBody({ type: UpdateInfoInicialRequestDto, description: 'Datos a actualizar' })
+  @ApiOkResponse({ description: 'Información inicial actualizada correctamente', type: InfoInicialDTO })
+  @ApiNotFoundResponse({ description: 'Información inicial no encontrada' })
+  @ApiBadRequestResponse({ description: 'Datos de entrada no válidos' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateInfoInicialRequestDto,
+    @Request() req: { user: { id: number } },
+  ): Promise<InfoInicialDTO> {
+    return this.infoInicialService.update(id, body, req.user.id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({
+    summary: 'Eliminar información inicial',
+    description: 'Elimina una información inicial de forma lógica (soft delete)',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la información inicial' })
+  @ApiOkResponse({ description: 'Información inicial eliminada correctamente' })
+  @ApiNotFoundResponse({ description: 'Información inicial no encontrada' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { id: number } },
+  ): Promise<string> {
+    return this.infoInicialService.remove(id, req.user.id);
   }
 }

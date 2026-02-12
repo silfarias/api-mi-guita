@@ -1,11 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
+
+import { PageDto } from 'src/common/dto/page.dto';
+
 import { MedioPago } from '../entities/medio-pago.entity';
 import { MedioPagoDTO } from '../dto/medio-pago.dto';
 import { CreateMedioPagoRequestDto } from '../dto/create-medio-pago-request.dto';
 import { UpdateMedioPagoRequestDto } from '../dto/update-medio-pago-request.dto';
 import { SearchMedioPagoRequestDto } from '../dto/search-medio-pago-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
 
 @Injectable()
 export class MedioPagoMapper {
@@ -19,11 +21,7 @@ export class MedioPagoMapper {
     request: SearchMedioPagoRequestDto,
     page: PageDto<MedioPago>,
   ): Promise<PageDto<MedioPagoDTO>> {
-    const dtos = await Promise.all(
-      page.data.map(async (medioPago) => {
-        return this.entity2DTO(medioPago);
-      }),
-    );
+    const dtos = await Promise.all(page.data.map((m) => this.entity2DTO(m)));
     const pageDto = new PageDto<MedioPagoDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
     pageDto.metadata.sortBy = request.sortBy;
@@ -31,10 +29,10 @@ export class MedioPagoMapper {
   }
 
   createDTO2Entity(request: CreateMedioPagoRequestDto): MedioPago {
-    const newMedioPago: MedioPago = new MedioPago();
-    newMedioPago.nombre = request.nombre;
-    newMedioPago.tipo = request.tipo;
-    return newMedioPago;
+    const medioPago = new MedioPago();
+    medioPago.nombre = request.nombre;
+    medioPago.tipo = request.tipo;
+    return medioPago;
   }
 
   updateDTO2Entity(

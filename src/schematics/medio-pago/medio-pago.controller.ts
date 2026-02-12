@@ -1,15 +1,14 @@
 import {
   Controller,
-  Post,
   Get,
+  Post,
   Patch,
   Delete,
   Param,
   Body,
-  ParseIntPipe,
   Query,
+  ParseIntPipe,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,98 +21,95 @@ import {
   ApiUnauthorizedResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
+
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
+import { PageDto } from 'src/common/dto/page.dto';
+
 import { MedioPagoService } from './medio-pago.service';
+import { MedioPagoDTO } from './dto/medio-pago.dto';
 import { CreateMedioPagoRequestDto } from './dto/create-medio-pago-request.dto';
 import { UpdateMedioPagoRequestDto } from './dto/update-medio-pago-request.dto';
 import { SearchMedioPagoRequestDto } from './dto/search-medio-pago-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
-import { MedioPagoDTO } from './dto/medio-pago.dto';
-import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Medio de Pago')
 @Controller('medio-pago')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('authorization')
 export class MedioPagoController {
-  constructor(
-    private medioPagoService: MedioPagoService,
-  ) {}
+  constructor(private readonly medioPagoService: MedioPagoService) {}
 
   @Get('search')
-  @ApiOperation({ summary: 'Buscar medios de pago' })
-  @ApiOkResponse({ type: PageDto, description: 'Lista paginada de Medios de Pago' })
-  @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async search(
-    @Query() request: SearchMedioPagoRequestDto,
-  ): Promise<PageDto<MedioPagoDTO>> {
-    const reqDto = plainToInstance(SearchMedioPagoRequestDto, request);
-    return await this.medioPagoService.search(reqDto);
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Crear un medio de pago' })
-  @ApiBody({
-    type: CreateMedioPagoRequestDto,
-    description: 'Datos del nuevo medio de pago (billetera virtual o banco)',
+  @ApiOperation({
+    summary: 'Buscar medios de pago',
+    description: 'Permite buscar medios de pago por nombre o tipo y retorna una lista paginada',
   })
   @ApiOkResponse({
-    type: MedioPagoDTO,
-    description: 'Medio de pago creado correctamente',
+    description: 'Lista paginada de medios de pago',
+    type: PageDto,
   })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async create(
-    @Body() createMedioPagoRequestDto: CreateMedioPagoRequestDto,
-  ): Promise<MedioPagoDTO> {
-    return await this.medioPagoService.create(createMedioPagoRequestDto);
+  async search(@Query() request: SearchMedioPagoRequestDto): Promise<PageDto<MedioPagoDTO>> {
+    const reqDto = plainToInstance(SearchMedioPagoRequestDto, request, {
+      enableImplicitConversion: true,
+    });
+    return this.medioPagoService.search(reqDto);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener medio de pago por ID' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Medio de Pago' })
-  @ApiOkResponse({
-    type: MedioPagoDTO,
-    description: 'Medio de pago obtenido correctamente',
+  @ApiOperation({
+    summary: 'Obtener medio de pago por ID',
+    description: 'Permite obtener un medio de pago por su ID',
   })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el medio de pago' })
+  @ApiParam({ name: 'id', description: 'ID del medio de pago' })
+  @ApiOkResponse({ description: 'Medio de pago encontrado', type: MedioPagoDTO })
+  @ApiNotFoundResponse({ description: 'Medio de pago no encontrado' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async findOne(@Param('id', ParseIntPipe) id: number): Promise<MedioPagoDTO> {
-    return await this.medioPagoService.findOne(id);
+    return this.medioPagoService.findOne(id);
+  }
+
+  @Post()
+  @ApiOperation({
+    summary: 'Crear medio de pago',
+    description: 'Permite crear un nuevo medio de pago (billetera virtual o banco)',
+  })
+  @ApiBody({ type: CreateMedioPagoRequestDto, description: 'Datos del nuevo medio de pago' })
+  @ApiOkResponse({ description: 'Medio de pago creado correctamente', type: MedioPagoDTO })
+  @ApiBadRequestResponse({ description: 'Datos de entrada no válidos' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async create(@Body() body: CreateMedioPagoRequestDto): Promise<MedioPagoDTO> {
+    return this.medioPagoService.create(body);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar medio de pago' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Medio de Pago' })
-  @ApiBody({
-    type: UpdateMedioPagoRequestDto,
-    description: 'Datos actualizados del medio de pago',
+  @ApiOperation({
+    summary: 'Actualizar medio de pago',
+    description: 'Permite actualizar los datos de un medio de pago existente',
   })
-  @ApiOkResponse({
-    type: MedioPagoDTO,
-    description: 'Medio de pago actualizado correctamente',
-  })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el medio de pago' })
+  @ApiParam({ name: 'id', description: 'ID del medio de pago' })
+  @ApiBody({ type: UpdateMedioPagoRequestDto, description: 'Datos a actualizar' })
+  @ApiOkResponse({ description: 'Medio de pago actualizado correctamente', type: MedioPagoDTO })
+  @ApiNotFoundResponse({ description: 'Medio de pago no encontrado' })
+  @ApiBadRequestResponse({ description: 'Datos de entrada no válidos' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateMedioPagoRequestDto: UpdateMedioPagoRequestDto,
+    @Body() body: UpdateMedioPagoRequestDto,
   ): Promise<MedioPagoDTO> {
-    return await this.medioPagoService.update(id, updateMedioPagoRequestDto);
+    return this.medioPagoService.update(id, body);
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Eliminar medio de pago' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Medio de Pago' })
+  @ApiOperation({
+    summary: 'Eliminar medio de pago',
+    description: 'Elimina un medio de pago de forma lógica (soft delete)',
+  })
+  @ApiParam({ name: 'id', description: 'ID del medio de pago' })
   @ApiOkResponse({ description: 'Medio de pago eliminado correctamente' })
-  @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el medio de pago' })
+  @ApiNotFoundResponse({ description: 'Medio de pago no encontrado' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async delete(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<any> {
-    return await this.medioPagoService.remove(id);
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<string> {
+    return this.medioPagoService.remove(id);
   }
 }

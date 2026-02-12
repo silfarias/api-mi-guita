@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+
 import { Usuario } from '../entities/usuario.entity';
-import { SearchUsuarioRequestDto } from '../dto/search-usuario-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
+import { SearchUsuarioRequestDto } from '../dto/search-usuario-request.dto';
 
 @Injectable()
 export class UsuarioRepository extends Repository<Usuario> {
@@ -11,9 +12,7 @@ export class UsuarioRepository extends Repository<Usuario> {
   }
 
   async search(request: SearchUsuarioRequestDto): Promise<PageDto<Usuario>> {
-    const queryBuilder: SelectQueryBuilder<Usuario> = this.createQueryBuilder(
-      'usuario',
-    )
+    const queryBuilder: SelectQueryBuilder<Usuario> = this.createQueryBuilder('usuario')
       .leftJoinAndSelect('usuario.persona', 'persona');
 
     if (request.id) {

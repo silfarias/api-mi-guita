@@ -19,11 +19,7 @@ export class CategoriaMapper {
     request: SearchCategoriaRequestDto,
     page: PageDto<Categoria>,
   ): Promise<PageDto<CategoriaDTO>> {
-    const dtos = await Promise.all(
-      page.data.map(async (categoria) => {
-        return this.entity2DTO(categoria);
-      }),
-    );
+    const dtos = await Promise.all(page.data.map((c) => this.entity2DTO(c)));
     const pageDto = new PageDto<CategoriaDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
     pageDto.metadata.sortBy = request.sortBy;

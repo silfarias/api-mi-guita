@@ -1,5 +1,5 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import { ApiProperty, PartialType } from '@nestjs/swagger';
 import { UpdatePersonaRequestDto } from 'src/schematics/persona/dto/update-persona-request.dto';
 
 export class UpdateUsuarioRequestDto extends UpdatePersonaRequestDto {
@@ -13,7 +13,7 @@ export class UpdateUsuarioRequestDto extends UpdatePersonaRequestDto {
   @IsOptional()
   @IsString()
   @MinLength(6)
-  contrasena:   string;
+  contrasena?: string;
 
   @ApiProperty({ description: 'Email del usuario', type: String, required: false, example: 'usuario@gmail.com' })
   @IsOptional()

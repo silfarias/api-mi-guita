@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { BaseSearchDto } from 'src/common/dto/base-search.dto';
 
 export class SearchPersonaRequestDto extends BaseSearchDto {
@@ -20,20 +20,4 @@ export class SearchPersonaRequestDto extends BaseSearchDto {
   @IsOptional()
   @IsString()
   apellido?: string;
-
-  @ApiProperty({ description: 'Email para filtrar', required: false })
-  @IsOptional()
-  @IsString()
-  email?: string;
-
-  @ApiProperty({ description: 'Nombre de usuario para filtrar', required: false })
-  @IsOptional()
-  @IsString()
-  nombreUsuario?: string;
-
-  @ApiProperty({ description: 'ID del usuario para filtrar', required: false })
-  @IsOptional()
-  @IsNumber()
-  @Type(() => Number)
-  idUsuario?: number;
 }

@@ -1,5 +1,9 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { GetEntityService } from 'src/common/services/get-entity.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
+
 import { GastoFijo } from './entities/gasto-fijo.entity';
 import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 import { ResumenPagoGastoFijo } from './entities/resumen-pago-gasto-fijo.entity';
@@ -21,6 +25,13 @@ import { InfoInicialModule } from '../info-inicial/info-inicial.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
 import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
 
+/**
+ * Módulo de Gastos Fijos.
+ * Incluye:
+ * - Cabecera (GastoFijo): gastos fijos del usuario.
+ * - Pagos (GastoFijoPago): registros por mes de cada gasto fijo.
+ * - Resumen (ResumenPagoGastoFijo): resumen de pagos por información inicial.
+ */
 @Module({
   imports: [
     TypeOrmModule.forFeature([GastoFijo, GastoFijoPago, ResumenPagoGastoFijo]),
@@ -41,6 +52,8 @@ import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
     GastoFijoPagoMapper,
     ResumenPagoGastoFijoMapper,
     MedioPagoMapper,
+    GetEntityService,
+    ErrorHandlerService,
   ],
   exports: [
     GastoFijoService,

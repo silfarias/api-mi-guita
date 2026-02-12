@@ -1,59 +1,54 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, HttpException, Inject, forwardRef, BadRequestException, NotFoundException } from '@nestjs/common';
+
+import { GetEntityService } from 'src/common/services/get-entity.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
+import { ERRORS } from 'src/common/errors/errors-codes';
+import { MesEnum } from 'src/common/enums/mes-enum';
+
+import { Usuario } from '../usuario/entities/usuario.entity';
+import { Categoria } from '../categoria/entities/categoria.entity';
+import { CategoriaRepository } from '../categoria/repository/categoria.repository';
+import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
+import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
+
+import { GastoFijo } from './entities/gasto-fijo.entity';
+import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
+import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
+import { GastoFijoRepository } from './repository/gasto-fijo.repository';
+import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
+import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { CreateGastoFijoRequestDto } from './dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
-import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
-import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
-import { GastoFijoRepository } from './repository/gasto-fijo.repository';
-import { PageDto } from 'src/common/dto/page.dto';
-import { ERRORS } from 'src/common/errors/errors-codes';
-import { CategoriaRepository } from '../categoria/repository/categoria.repository';
-import { UsuarioRepository } from '../usuario/repository/usuario.repository';
-import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
-import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
-import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
-import { MesEnum } from 'src/common/enums/mes-enum';
-import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
+
+const RELATIONS = ['categoria', 'usuario', 'medioPago'] as const;
 
 @Injectable()
 export class GastoFijoService {
   constructor(
-    private gastoFijoMapper: GastoFijoMapper,
-    private gastoFijoRepository: GastoFijoRepository,
-    private categoriaRepository: CategoriaRepository,
-    private usuarioRepository: UsuarioRepository,
+    private readonly gastoFijoMapper: GastoFijoMapper,
+    private readonly gastoFijoRepository: GastoFijoRepository,
+    private readonly categoriaRepository: CategoriaRepository,
+    private readonly getEntityService: GetEntityService,
+    private readonly errorHandler: ErrorHandlerService,
     @Inject(forwardRef(() => InfoInicialRepository))
-    private infoInicialRepository: InfoInicialRepository,
+    private readonly infoInicialRepository: InfoInicialRepository,
     @Inject(forwardRef(() => GastoFijoPagoRepository))
-    private gastoFijoPagoRepository: GastoFijoPagoRepository,
+    private readonly gastoFijoPagoRepository: GastoFijoPagoRepository,
     @Inject(forwardRef(() => MedioPagoRepository))
-    private medioPagoRepository: MedioPagoRepository,
+    private readonly medioPagoRepository: MedioPagoRepository,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<GastoFijoDTO> {
-    const gastoFijo = await this.gastoFijoRepository.findOne({
-      where: { id: id },
-      relations: ['categoria', 'usuario', 'medioPago'],
-    });
-
-    if (!gastoFijo) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+    try {
+      const gastoFijo = await this.getEntityService.findById(GastoFijo, id, [...RELATIONS]);
+      this.checkBelongsToUser(gastoFijo, usuarioId, 'ver');
+      return this.gastoFijoMapper.entity2DTO(gastoFijo);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
-
-    if (gastoFijo.usuario.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: 'No tienes permiso para ver este gasto fijo',
-        details: JSON.stringify({ id }),
-      });
-    }
-
-    return await this.gastoFijoMapper.entity2DTO(gastoFijo);
   }
 
   async getGastosFijosActivos(usuarioId: number): Promise<GastoFijoDTO[]> {
@@ -68,50 +63,15 @@ export class GastoFijoService {
   }
 
   async getMisGastosFijos(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<MisGastosFijosResponseDTO> {
-    // Obtener el usuario
-    const usuario = await this.usuarioRepository.findOne({
-      where: { id: usuarioId },
-    });
-
-    if (!usuario) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: 'Usuario no encontrado',
-        details: JSON.stringify({ usuarioId }),
-      });
-    }
-
+    const usuario = await this.getEntityService.findById(Usuario, usuarioId);
     const gastoFijoPage = await this.gastoFijoRepository.search(request, usuarioId);
     return this.gastoFijoMapper.page2MisGastosFijosResponseDto(request, gastoFijoPage, usuario);
   }
 
   async create(request: CreateGastoFijoRequestDto, usuarioId: number): Promise<GastoFijoDTO> {
     try {
-      // Validar que la categoría existe
-      const categoria = await this.categoriaRepository.findOne({
-        where: { id: request.categoriaId },
-      });
-
-      if (!categoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Categoría no encontrada',
-          details: JSON.stringify({ categoriaId: request.categoriaId }),
-        });
-      }
-
-      // Validar que el usuario existe
-      const usuario = await this.usuarioRepository.findOne({
-        where: { id: usuarioId },
-      });
-
-      if (!usuario) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Usuario no encontrado',
-          details: JSON.stringify({ usuarioId }),
-        });
-      }
+      await this.getEntityService.findById(Categoria, request.categoriaId);
+      const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
       // Validar que no exista otro gasto fijo con el mismo nombre para este usuario
       const gastoFijoExistente = await this.gastoFijoRepository
@@ -145,11 +105,7 @@ export class GastoFijoService {
         });
 
         if (!medioPago) {
-          throw new NotFoundException({
-            code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-            message: 'Medio de pago no encontrado',
-            details: JSON.stringify({ medioPagoId: request.medioPagoId }),
-          });
+          this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { medioPagoId: request.medioPagoId });
         }
       } else {
         // Si no es débito automático, no debe tener medioPagoId
@@ -170,30 +126,11 @@ export class GastoFijoService {
       // Crear automáticamente el GastoFijoPago para el mes actual si existe InfoInicial
       await this.crearGastoFijoPagoParaMesActual(gastoFijoSaved.id, usuarioId);
 
-      // Buscar el gasto fijo guardado con relaciones
-      const searchGastoFijo = await this.gastoFijoRepository.findOne({
-        where: { id: gastoFijoSaved.id },
-        relations: ['categoria', 'usuario', 'medioPago'],
-      });
-
-      if (!searchGastoFijo) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id: gastoFijoSaved.id }),
-        });
-      }
-
-      return this.gastoFijoMapper.entity2DTO(searchGastoFijo);
+      const withRelations = await this.getEntityService.findById(GastoFijo, gastoFijoSaved.id, [...RELATIONS]);
+      return this.gastoFijoMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
@@ -203,27 +140,8 @@ export class GastoFijoService {
     usuarioId: number,
   ): Promise<GastoFijoDTO> {
     try {
-      // Verificar que el gasto fijo existe y pertenece al usuario
-      const gastoFijo = await this.gastoFijoRepository.findOne({
-        where: { id: id },
-        relations: ['categoria', 'usuario', 'medioPago'],
-      });
-
-      if (!gastoFijo) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      if (gastoFijo.usuario.id !== usuarioId) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'No tienes permiso para modificar este gasto fijo',
-          details: JSON.stringify({ id }),
-        });
-      }
+      const gastoFijo = await this.getEntityService.findById(GastoFijo, id, [...RELATIONS]);
+      this.checkBelongsToUser(gastoFijo, usuarioId, 'modificar');
 
       // Validar categoría si se está actualizando
       if (request.categoriaId !== undefined && request.categoriaId !== gastoFijo.categoria?.id) {
@@ -232,11 +150,7 @@ export class GastoFijoService {
         });
 
         if (!categoriaExiste) {
-          throw new NotFoundException({
-            code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-            message: 'Categoría no encontrada',
-            details: JSON.stringify({ categoriaId: request.categoriaId }),
-          });
+          this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { categoriaId: request.categoriaId });
         }
       }
 
@@ -280,11 +194,7 @@ export class GastoFijoService {
           });
 
           if (!medioPagoExiste) {
-            throw new NotFoundException({
-              code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-              message: 'Medio de pago no encontrado',
-              details: JSON.stringify({ medioPagoId }),
-            });
+            this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { medioPagoId });
           }
         } else {
           // Si no es débito automático, no debe tener medioPagoId
@@ -302,76 +212,29 @@ export class GastoFijoService {
       const updateGastoFijo = this.gastoFijoMapper.updateDTO2Entity(gastoFijo, request);
       await this.gastoFijoRepository.save(updateGastoFijo);
 
-      // Buscar el gasto fijo actualizado
-      const searchGastoFijo = await this.gastoFijoRepository.findOne({
-        where: { id: id },
-        relations: ['categoria', 'usuario', 'medioPago'],
-      });
-
-      if (!searchGastoFijo) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      return this.gastoFijoMapper.entity2DTO(searchGastoFijo);
+      const withRelations = await this.getEntityService.findById(GastoFijo, id, [...RELATIONS]);
+      return this.gastoFijoMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
   async remove(id: number, usuarioId: number): Promise<string> {
-    const gastoFijo = await this.gastoFijoRepository.findOne({
-      where: { id: id },
-      relations: ['usuario'],
-    });
-
-    if (!gastoFijo) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+    try {
+      const gastoFijo = await this.getEntityService.findById(GastoFijo, id, ['usuario']);
+      this.checkBelongsToUser(gastoFijo, usuarioId, 'eliminar');
+      await this.gastoFijoRepository.softRemove(gastoFijo);
+      return 'Gasto fijo eliminado correctamente';
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
-
-    if (gastoFijo.usuario.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: 'No tienes permiso para eliminar este gasto fijo',
-        details: JSON.stringify({ id }),
-      });
-    }
-
-    await this.gastoFijoRepository.softRemove(gastoFijo);
-    return 'Gasto fijo eliminado correctamente';
   }
 
   async createBulk(request: CreateGastoFijoBulkRequestDto, usuarioId: number): Promise<GastoFijoDTO[]> {
     try {
-      // Validar que el usuario existe
-      const usuario = await this.usuarioRepository.findOne({
-        where: { id: usuarioId },
-      });
-
-      if (!usuario) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Usuario no encontrado',
-          details: JSON.stringify({ usuarioId }),
-        });
-      }
+      const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
       // Obtener todos los IDs de categorías únicos
       const categoriaIds = [...new Set(request.gastosFijos.map(gf => gf.categoriaId))];
@@ -491,20 +354,11 @@ export class GastoFijoService {
 
       return dtos;
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
-  /**
-   * Obtiene el mes actual en formato MesEnum
-   */
   private obtenerMesActual(): MesEnum {
     const meses: MesEnum[] = [
       MesEnum.ENERO,
@@ -575,9 +429,13 @@ export class GastoFijoService {
 
       await this.gastoFijoPagoRepository.save(nuevoPago);
     } catch (error) {
-      // Si hay un error al crear el pago automático, lo registramos pero no fallamos la creación del gasto fijo
       console.error('Error al crear pago automático de gasto fijo para el mes actual:', error);
-      // No lanzamos el error para no interrumpir el flujo principal
+    }
+  }
+
+  private checkBelongsToUser(gastoFijo: GastoFijo, usuarioId: number, accion: string): void {
+    if (gastoFijo.usuario?.id !== usuarioId) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, `No tienes permiso para ${accion} este gasto fijo`);
     }
   }
 }

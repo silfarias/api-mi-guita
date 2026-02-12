@@ -29,7 +29,8 @@ import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-requ
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('Gasto Fijo')
 @Controller('gasto-fijo')
@@ -51,8 +52,8 @@ export class GastoFijoController {
     @Query() request: SearchGastoFijoRequestDto,
     @Request() req: any,
   ): Promise<MisGastosFijosResponseDTO> {
-    const reqDto = plainToInstance(SearchGastoFijoRequestDto, request);
-    return await this.gastoFijoService.getMisGastosFijos(reqDto, req.user.id);
+    const reqDto = plainToInstance(SearchGastoFijoRequestDto, request, { enableImplicitConversion: true });
+    return this.gastoFijoService.getMisGastosFijos(reqDto, req.user.id);
   }
 
   @Post()
@@ -139,10 +140,10 @@ export class GastoFijoController {
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
   @ApiNotFoundResponse({ description: 'No se encontró el gasto fijo' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async delete(
+  async remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ): Promise<any> {
-    return await this.gastoFijoService.remove(id, req.user.id);
+    @Request() req: { user: { id: number } },
+  ): Promise<string> {
+    return this.gastoFijoService.remove(id, req.user.id);
   }
 }

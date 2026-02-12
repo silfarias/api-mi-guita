@@ -17,7 +17,7 @@ import {
 import { ReportesService } from './reportes.service';
 import { ReporteMensualRequestDto } from './dto/reporte-mensual-request.dto';
 import { ReporteMensualDTO } from './dto/reporte-mensual.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Reportes')

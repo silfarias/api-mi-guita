@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+
+import { PageDto } from 'src/common/dto/page.dto';
+
 import { GastoFijo } from '../entities/gasto-fijo.entity';
 import { SearchGastoFijoRequestDto } from '../dto/search-gasto-fijo-request.dto';
-import { PageDto } from 'src/common/dto/page.dto';
-import { ERRORS } from 'src/common/errors/errors-codes';
 
 @Injectable()
 export class GastoFijoRepository extends Repository<GastoFijo> {
@@ -12,9 +13,7 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
   }
 
   async search(request: SearchGastoFijoRequestDto, usuarioId: number): Promise<PageDto<GastoFijo>> {
-    const queryBuilder: SelectQueryBuilder<GastoFijo> = this.createQueryBuilder(
-      'gastoFijo',
-    )
+    const qb = this.createQueryBuilder('gastoFijo')
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
       .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
@@ -22,54 +21,20 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       .leftJoinAndSelect('gastosFijosPagos.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
-    if (request.id) {
-      queryBuilder.andWhere('gastoFijo.id = :id', { id: request.id });
-    }
-
-    if (request.nombre) {
-      queryBuilder.andWhere('gastoFijo.nombre = :nombre', { nombre: request.nombre });
-    }
-
-    if (request.categoriaId) {
-      queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
-    }
-
-    if (request.activo !== undefined) {
-      queryBuilder.andWhere('gastoFijo.activo = :activo', { activo: request.activo });
-    }
-
+    if (request.id != null) qb.andWhere('gastoFijo.id = :id', { id: request.id });
+    if (request.nombre) qb.andWhere('gastoFijo.nombre = :nombre', { nombre: request.nombre });
+    if (request.categoriaId != null) qb.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
+    if (request.activo !== undefined) qb.andWhere('gastoFijo.activo = :activo', { activo: request.activo });
     if (request.esDebitoAutomatico !== undefined) {
-      queryBuilder.andWhere('gastoFijo.esDebitoAutomatico = :esDebitoAutomatico', { esDebitoAutomatico: request.esDebitoAutomatico });
+      qb.andWhere('gastoFijo.esDebitoAutomatico = :esDebitoAutomatico', { esDebitoAutomatico: request.esDebitoAutomatico });
     }
+    if (request.medioPagoId !== undefined) qb.andWhere('medioPago.id = :medioPagoId', { medioPagoId: request.medioPagoId });
 
-    if (request.medioPagoId !== undefined) {
-      queryBuilder.andWhere('medioPago.id = :medioPagoId', { medioPagoId: request.medioPagoId });
-    }
+    qb.orderBy('gastoFijo.nombre', 'ASC');
+    qb.addOrderBy('gastoFijo.id', 'DESC');
 
-    queryBuilder.orderBy('gastoFijo.nombre', 'ASC');
-    queryBuilder.addOrderBy('gastoFijo.id', 'DESC');
-
-    const [list, count] = await queryBuilder
-      .skip(request.getOffset())
-      .take(request.getTake())
-      .getManyAndCount();
-
+    const [list, count] = await qb.skip(request.getOffset()).take(request.getTake()).getManyAndCount();
     return new PageDto<GastoFijo>(list, count);
-  }
-
-  async findOneById(id: number): Promise<GastoFijo> {
-    const gastoFijo = await this.findOne({
-      where: { id: id },
-      relations: ['categoria', 'usuario', 'medioPago'],
-    });
-    if (!gastoFijo) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
-    }
-    return gastoFijo;
   }
 
   async getGastosFijosActivos(usuarioId: number): Promise<GastoFijo[]> {

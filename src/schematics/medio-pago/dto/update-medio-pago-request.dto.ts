@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, MaxLength } from 'class-validator';
+
 import { TipoMedioPagoEnum } from 'src/common/enums/tipo-medio-pago-enum';
 
 export class UpdateMedioPagoRequestDto {

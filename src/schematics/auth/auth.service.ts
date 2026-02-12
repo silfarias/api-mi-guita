@@ -11,7 +11,6 @@ import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
 @Injectable()
 export class AuthService {
     constructor(
-        @Inject(forwardRef(() => UsuarioService))
         private usuarioService: UsuarioService,
         private jwtService: JwtService,
     ) { }
@@ -23,7 +22,10 @@ export class AuthService {
     async login(usuario: UsuarioDTO) {
         const payload = {
             sub: usuario.id,
-            nombreUsuario: usuario.nombreUsuario
+            nombre: usuario.persona.nombre,
+            apellido: usuario.persona.apellido,
+            nombreUsuario: usuario.nombreUsuario,
+            email: usuario.email
         };
 
         return {
@@ -35,15 +37,15 @@ export class AuthService {
     async signup(signupDto: SignupRequestDto, file?: Express.Multer.File): Promise<SignupResponseDto> {
         const nuevoUsuario = await this.usuarioService.create(signupDto, file);
         
-        // Actualizar último acceso (primer acceso al registrarse y autenticarse)
-        await this.usuarioService.updateUltimoAcceso(nuevoUsuario.id);
-        
         // Buscar el usuario actualizado para retornarlo con ultimoAcceso actualizado
         const usuarioActualizado = await this.usuarioService.findOne(nuevoUsuario.id);
         
         const payload = {
             sub: usuarioActualizado.id,
-            nombreUsuario: usuarioActualizado.nombreUsuario
+            nombre: usuarioActualizado.persona.nombre,
+            apellido: usuarioActualizado.persona.apellido,
+            nombreUsuario: usuarioActualizado.nombreUsuario,
+            email: usuarioActualizado.email
         };
 
         const access_token = this.jwtService.sign(payload);
@@ -86,9 +88,6 @@ export class AuthService {
     }
 
     async logout(userId: number): Promise<{ message: string }> {
-        // Actualizar último acceso del usuario al cerrar sesión
-        await this.usuarioService.updateUltimoAcceso(userId);
-        
         return {
             message: 'Sesión cerrada exitosamente'
         };

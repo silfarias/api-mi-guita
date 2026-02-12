@@ -1,155 +1,107 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpException } from '@nestjs/common';
+
+import { Categoria } from './entities/categoria.entity';
+import { CategoriaMapper } from './mappers/categoria.mapper';
+import { CategoriaRepository } from './repository/categoria.repository';
+
+import { PageDto } from 'src/common/dto/page.dto';
+
+import { CategoriaDTO } from './dto/categoria.dto';
 import { CreateCategoriaRequestDto } from './dto/create-categoria-request.dto';
 import { UpdateCategoriaRequestDto } from './dto/update-categoria-request.dto';
 import { SearchCategoriaRequestDto } from './dto/search-categoria-request.dto';
-import { CategoriaDTO } from './dto/categoria.dto';
-import { CategoriaMapper } from './mappers/categoria.mapper';
-import { CategoriaRepository } from './repository/categoria.repository';
-import { PageDto } from 'src/common/dto/page.dto';
+
+import { GetEntityService } from 'src/common/services/get-entity.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 
 @Injectable()
 export class CategoriaService {
   constructor(
-    private categoriaMapper: CategoriaMapper,
-    private categoriaRepository: CategoriaRepository,
+    private readonly categoriaMapper: CategoriaMapper,
+    private readonly categoriaRepository: CategoriaRepository,
+    private readonly getEntityService: GetEntityService,
+    private readonly errorHandler: ErrorHandlerService,
   ) {}
 
-  async findOne(id: number): Promise<CategoriaDTO> {
-    const categoria = await this.categoriaRepository.findOneById(id);
-    return await this.categoriaMapper.entity2DTO(categoria);
+  async findById(id: number): Promise<CategoriaDTO> {
+    try {
+      const categoria = await this.getEntityService.findById(Categoria, id);
+      return this.categoriaMapper.entity2DTO(categoria);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
+    }
   }
 
   async search(request: SearchCategoriaRequestDto): Promise<PageDto<CategoriaDTO>> {
-    const categoriaPage = await this.categoriaRepository.search(request);
-    return this.categoriaMapper.page2Dto(request, categoriaPage);
+    try {
+      const page = await this.categoriaRepository.search(request);
+      return this.categoriaMapper.page2Dto(request, page);
+    } catch (error) {
+      this.errorHandler.handleError(error);
+    }
   }
 
   async create(request: CreateCategoriaRequestDto): Promise<CategoriaDTO> {
     try {
-      // Validar que no exista una categoría con el mismo nombre
-      const existingCategoria = await this.categoriaRepository.findOne({
-        where: { nombre: request.nombre },
-      });
+      await this.validateUniqueNombre(request.nombre);
 
-      if (existingCategoria) {
-        throw new BadRequestException({
-          code: ERRORS.ENTITY.NAME_ALREADY_EXISTS.CODE,
-          message: 'Ya existe una categoría con ese nombre',
-          details: `La categoría "${request.nombre}" ya está registrada`,
-        });
-      }
-
-      // Crear la categoría
       const newCategoria = this.categoriaMapper.createDTO2Entity(request);
-      const categoriaSaved = await this.categoriaRepository.save(newCategoria);
+      const saved = await this.categoriaRepository.save(newCategoria);
 
-      // Buscar la categoría guardada
-      const searchCategoria = await this.categoriaRepository.findOne({
-        where: { id: categoriaSaved.id },
-      });
-
-      if (!searchCategoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id: categoriaSaved.id }),
-        });
-      }
-
-      return this.categoriaMapper.entity2DTO(searchCategoria);
+      const withRelations = await this.getEntityService.findById(Categoria, saved.id);
+      return this.categoriaMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
-  async update(
-    id: number,
-    request: UpdateCategoriaRequestDto,
-  ): Promise<CategoriaDTO> {
+  async update(id: number, request: UpdateCategoriaRequestDto): Promise<CategoriaDTO> {
     try {
-      // Verificar que la categoría existe
-      const categoria = await this.categoriaRepository.findOne({
-        where: { id: id },
-      });
+      const categoria = await this.getEntityService.findById(Categoria, id);
 
-      if (!categoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
+      if (request.nombre !== undefined && request.nombre !== categoria.nombre) {
+        await this.validateUniqueNombre(request.nombre);
       }
 
-      // Si se está cambiando el nombre, validar que no exista otra categoría con ese nombre
-      if (request.nombre && request.nombre !== categoria.nombre) {
-        const existingCategoria = await this.categoriaRepository.findOne({
-          where: { nombre: request.nombre },
-        });
+      const updated = this.categoriaMapper.updateDTO2Entity(categoria, request);
+      await this.categoriaRepository.save(updated);
 
-        if (existingCategoria) {
-          throw new BadRequestException({
-            code: ERRORS.ENTITY.NAME_ALREADY_EXISTS.CODE,
-            message: 'Ya existe una categoría con ese nombre',
-            details: `La categoría "${request.nombre}" ya está registrada`,
-          });
-        }
-      }
-
-      // Actualizar la categoría
-      const updateCategoria = this.categoriaMapper.updateDTO2Entity(categoria, request);
-      await this.categoriaRepository.save(updateCategoria);
-
-      // Buscar la categoría actualizada
-      const searchCategoria = await this.categoriaRepository.findOne({
-        where: { id: id },
-      });
-
-      if (!searchCategoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-          details: JSON.stringify({ id }),
-        });
-      }
-
-      return this.categoriaMapper.entity2DTO(searchCategoria);
+      const withRelations = await this.getEntityService.findById(Categoria, id);
+      return this.categoriaMapper.entity2DTO(withRelations);
     } catch (error) {
-      if (
-        error instanceof NotFoundException ||
-        error instanceof BadRequestException
-      ) {
-        throw error;
-      }
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: error.message,
-      });
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
   }
 
   async remove(id: number): Promise<string> {
-    const categoria = await this.categoriaRepository.findOne({
-      where: { id: id },
-    });
-
-    if (!categoria) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+    try {
+      const categoria = await this.getEntityService.findById(Categoria, id);
+      await this.categoriaRepository.softRemove(categoria);
+      return 'Categoría eliminada correctamente';
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      this.errorHandler.handleError(error);
     }
+  }
 
-    await this.categoriaRepository.softRemove(categoria);
-    return 'Categoría eliminada correctamente';
+  /** Alias para compatibilidad: obtener categoría por ID como DTO */
+  findOne(id: number): Promise<CategoriaDTO> {
+    return this.findById(id);
+  }
+
+  private async validateUniqueNombre(nombre: string): Promise<void> {
+    const existing = await this.categoriaRepository.findOne({
+      where: { nombre },
+    });
+    if (existing) {
+      this.errorHandler.throwConflict(
+        ERRORS.ENTITY.NAME_ALREADY_EXISTS,
+        `La categoría "${nombre}" ya está registrada`,
+      );
+    }
   }
 }

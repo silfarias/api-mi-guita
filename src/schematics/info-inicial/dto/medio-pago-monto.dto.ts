@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class MedioPagoMontoDto {
+export class MedioPagoMontoRequestDto {
   @ApiProperty({ 
     description: 'ID del medio de pago', 
     type: Number, 

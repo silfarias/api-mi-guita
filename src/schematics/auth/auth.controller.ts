@@ -1,15 +1,17 @@
 import { Controller, Post, Body, Get, Request, UseGuards, Patch, UseInterceptors, UploadedFile } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiCreatedResponse, ApiBearerAuth, ApiParam, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiCreatedResponse, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { AuthService } from './auth.service';
+
+import { UsuarioDTO } from '../usuario/dto/usuario.dto';
 import { LoginUsuarioRequestDto } from '../usuario/dto/login-usuario-request.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { SignupRequestDto } from './dto/signup-request.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
 import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
-import { UsuarioDTO } from '../usuario/dto/usuario.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { SwaggerSignupRequestDto } from './dto/swagger-usuario-request.dto';
 
 @ApiTags('Auth')
@@ -110,6 +112,8 @@ export class AuthController {
   }
 
   @Patch('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('authorization')
   @ApiOperation({ 
     summary: 'Cambiar contraseña de usuario',
     description: 'Cambia la contraseña de un usuario proporcionando su email, nueva contraseña y confirmación.'

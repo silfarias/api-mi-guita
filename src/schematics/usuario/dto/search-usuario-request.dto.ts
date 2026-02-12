@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString, IsBoolean } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 import { BaseSearchDto } from 'src/common/dto/base-search.dto';
 
 export class SearchUsuarioRequestDto extends BaseSearchDto {

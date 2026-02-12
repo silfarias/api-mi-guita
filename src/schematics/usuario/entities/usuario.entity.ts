@@ -1,7 +1,7 @@
+import { Column, Entity, JoinColumn, OneToOne, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/common/models/baseentity';
 import { Persona } from 'src/schematics/persona/entities/persona.entity';
 import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
-import { Column, Entity, JoinColumn, OneToOne, OneToMany } from 'typeorm';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
 import { ResumenPagoGastoFijo } from 'src/schematics/gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
 
@@ -14,14 +14,14 @@ export class Usuario extends BaseEntity {
   @Column({ name: 'user01_contrasena', type: 'varchar', length: 255 })
   contrasena: string;
 
-  @Column({ name: 'user01_email', type: 'varchar', length: 255, nullable: false })
+  @Column({ name: 'user01_email', type: 'varchar', length: 255 })
   email: string;
 
   @Column({ name: 'user01_activo', type: 'boolean', default: true })
   activo: boolean;
 
-  @Column({ name: 'user01_ultimo_acceso', type: 'datetime', nullable: true })
-  ultimoAcceso?: Date;
+  @Column({ name: 'user01_ultimo_acceso', type: 'datetime' })
+  ultimoAcceso: Date;
 
   @Column({ name: 'user01_foto_perfil', type: 'varchar', length: 1000, nullable: true })
   fotoPerfil: string | null;

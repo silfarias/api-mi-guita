@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BaseSearchDto } from 'src/common/dto/base-search.dto';
 import { IsOptional, IsNumber, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+
+import { BaseSearchDto } from 'src/common/dto/base-search.dto';
 import { TipoMedioPagoEnum } from 'src/common/enums/tipo-medio-pago-enum';
 
 export class SearchMedioPagoRequestDto extends BaseSearchDto {

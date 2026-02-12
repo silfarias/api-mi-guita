@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { CreateUsuarioRequestDto, CreateUsuarioRequestDtoWithPersonaId } from './create-usuario-request.dto';
+import { ApiProperty } from '@nestjs/swagger';
+import { CreateUsuarioRequestDto } from './create-usuario-request.dto';
 import { UpdateUsuarioRequestDto } from './update-usuario-request.dto';
 
 export class SwaggerCreateUsuarioRequestDto extends CreateUsuarioRequestDto {
@@ -14,17 +14,6 @@ export class SwaggerCreateUsuarioRequestDto extends CreateUsuarioRequestDto {
   @IsOptional()
   fotoPerfil?: any 
 
-}
-
-export class SwaggerCreateUsuarioRequestDtoWithPersonaId extends CreateUsuarioRequestDtoWithPersonaId {
-  @ApiProperty({
-    type: 'string',
-    format: 'binary',
-    description: 'Foto de perfil del usuario (JPG, JPEG, PNG, GIF, WEBP)',
-    required: false,
-  })
-  @IsOptional()
-  fotoPerfil?: any 
 }
 
 export class SwaggerUpdateUsuarioRequestDto extends UpdateUsuarioRequestDto {

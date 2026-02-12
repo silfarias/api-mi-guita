@@ -9,15 +9,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: process.env.JWT_SECRET || 'tu_clave_secreta_super_segura',
+            secretOrKey: process.env.ACCESS_TOKEN_SECRET || 'tu_clave_secreta_super_segura',
         });
     }
 
-    async validate(payload: any) {
-        const usuario = await this.usuarioService.findOne(payload.sub);
-        return {
-            id: usuario.id,
-            nombreUsuario: usuario.nombreUsuario,
-        };
+    async validate(payload: { sub: number | string; nombreUsuario?: string }) {
+        const userId = typeof payload.sub === 'string' ? parseInt(payload.sub, 10) : payload.sub;
+        if (Number.isNaN(userId)) return null;
+        try {
+            const usuario = await this.usuarioService.findOne(userId);
+            if (!usuario) return null;
+            return { id: usuario.id, nombreUsuario: usuario.nombreUsuario };
+        } catch {
+            return null; // usuario no encontrado o error → JWT inválido para esta petición → 401
+        }
     }
 } 
