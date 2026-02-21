@@ -3,7 +3,7 @@ import { BaseSearchDto } from 'src/common/dto/base-search.dto';
 import { IsOptional, IsNumber, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class SearchGastoFijoPagoRequestDto extends BaseSearchDto {
+export class SearchPagoGastoFijoRequestDto extends BaseSearchDto {
 
   @ApiProperty({ description: 'ID del gasto fijo pago', type: Number, required: false })
   @IsOptional()

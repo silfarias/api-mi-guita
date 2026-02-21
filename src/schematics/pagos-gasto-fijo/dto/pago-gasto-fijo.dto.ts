@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose, Type } from 'class-transformer';
-import { GastoFijoDTO } from './gasto-fijo.dto';
+import { GastoFijoDTO } from 'src/schematics/gasto-fijo/dto/gasto-fijo.dto';
 import { InfoInicialDTO } from 'src/schematics/info-inicial/dto/info-inicial.dto';
 import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
 
-export class GastoFijoPagoDTO extends CommonDTO {
+export class PagoGastoFijoDTO extends CommonDTO {
 
   @ApiProperty({ description: 'Gasto fijo asociado', type: () => GastoFijoDTO })
   @Expose()

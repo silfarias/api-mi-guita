@@ -26,9 +26,9 @@ export class ResumenPagoGastoFijoMapper {
     }
 
     // Calcular campos derivados
-    dto.montoPendiente = Number(dto.montoTotal) - Number(dto.montoPagado);
-    dto.porcentajePagado = dto.montoTotal > 0 
-      ? (Number(dto.montoPagado) / Number(dto.montoTotal)) * 100 
+    dto.montoPendiente = Number(dto.montoTotalDefinido) - Number(dto.montoPagado);
+    dto.porcentajePagado = dto.montoTotalDefinido > 0 
+      ? (Number(dto.montoPagado) / Number(dto.montoTotalDefinido)) * 100 
       : 0;
     
     return dto;

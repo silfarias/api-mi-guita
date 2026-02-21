@@ -12,10 +12,10 @@ import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.r
 import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
 
 import { GastoFijo } from './entities/gasto-fijo.entity';
-import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
+import { PagoGastoFijo } from '../pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
 import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
-import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
+import { PagoGastoFijoRepository } from '../pagos-gasto-fijo/repository/pago-gasto-fijo.repository';
 import { GastoFijoDTO, MisGastosFijosResponseDTO } from './dto/gasto-fijo.dto';
 import { CreateGastoFijoRequestDto } from './dto/create-gasto-fijo-request.dto';
 import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
@@ -34,8 +34,8 @@ export class GastoFijoService {
     private readonly errorHandler: ErrorHandlerService,
     @Inject(forwardRef(() => InfoInicialRepository))
     private readonly infoInicialRepository: InfoInicialRepository,
-    @Inject(forwardRef(() => GastoFijoPagoRepository))
-    private readonly gastoFijoPagoRepository: GastoFijoPagoRepository,
+    @Inject(forwardRef(() => PagoGastoFijoRepository))
+    private readonly pagoGastoFijoRepository: PagoGastoFijoRepository,
     @Inject(forwardRef(() => MedioPagoRepository))
     private readonly medioPagoRepository: MedioPagoRepository,
   ) {}
@@ -400,10 +400,10 @@ export class GastoFijoService {
       }
 
       // Verificar si ya existe un pago para este gasto fijo y esta InfoInicial
-      const pagoExistente = await this.gastoFijoPagoRepository
-        .createQueryBuilder('gastoFijoPago')
-        .where('gastoFijoPago.gastoFijo = :gastoFijoId', { gastoFijoId })
-        .andWhere('gastoFijoPago.infoInicial = :infoInicialId', { infoInicialId: infoInicialActual.id })
+      const pagoExistente = await this.pagoGastoFijoRepository
+        .createQueryBuilder('pagoGastoFijo')
+        .where('pagoGastoFijo.gastoFijo = :gastoFijoId', { gastoFijoId })
+        .andWhere('pagoGastoFijo.infoInicial = :infoInicialId', { infoInicialId: infoInicialActual.id })
         .getOne();
 
       if (pagoExistente) {
@@ -421,13 +421,13 @@ export class GastoFijoService {
       }
 
       // Crear el GastoFijoPago
-      const nuevoPago = new GastoFijoPago();
+      const nuevoPago = new PagoGastoFijo();
       nuevoPago.gastoFijo = gastoFijo;
       nuevoPago.infoInicial = infoInicialActual;
       nuevoPago.montoPago = gastoFijo.montoFijo || 0;
       nuevoPago.pagado = false;
 
-      await this.gastoFijoPagoRepository.save(nuevoPago);
+      await this.pagoGastoFijoRepository.save(nuevoPago);
     } catch (error) {
       console.error('Error al crear pago automático de gasto fijo para el mes actual:', error);
     }

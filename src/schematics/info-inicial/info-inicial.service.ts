@@ -11,8 +11,8 @@ import { Usuario } from '../usuario/entities/usuario.entity';
 import { MedioPago } from '../medio-pago/entities/medio-pago.entity';
 import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
 import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
-import { GastoFijoPagoService } from '../gasto-fijo/gasto-fijo-pago.service';
-import { ResumenPagoGastoFijoService } from '../gasto-fijo/resumen-pago-gasto-fijo.service';
+import { PagoGastoFijoService } from '../pagos-gasto-fijo/pago-gasto-fijo.service';
+import { ResumenPagoGastoFijoService } from '../resumen-gasto-fijo/resumen-pago-gasto-fijo.service';
 
 import { InfoInicial } from './entities/info-inicial.entity';
 import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
@@ -39,7 +39,7 @@ export class InfoInicialService {
     private readonly medioPagoMapper: MedioPagoMapper,
     private readonly getEntityService: GetEntityService,
     private readonly errorHandler: ErrorHandlerService,
-    private readonly gastoFijoPagoService: GastoFijoPagoService,
+    private readonly pagoGastoFijoService: PagoGastoFijoService,
     private readonly resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
     private readonly dataSource: DataSource,
   ) {}
@@ -92,7 +92,7 @@ export class InfoInicialService {
         });
         await manager.getRepository(InfoInicialMedioPago).save(infoInicialMedioPagos);
 
-        await this.gastoFijoPagoService.crearGastosFijosPagosAutomaticos(infoInicial, usuarioId, manager);
+        await this.pagoGastoFijoService.crearGastosFijosPagosAutomaticos(infoInicial, usuarioId, manager);
         await this.resumenPagoGastoFijoService.crearOInicializarResumen(infoInicial.id, usuarioId, manager);
 
         return infoInicial;

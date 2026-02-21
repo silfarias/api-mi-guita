@@ -2,66 +2,34 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { GastoFijo } from './entities/gasto-fijo.entity';
-import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
-import { ResumenPagoGastoFijo } from './entities/resumen-pago-gasto-fijo.entity';
 import { GastoFijoMapper } from './mappers/gasto-fijo.mapper';
-import { GastoFijoPagoMapper } from './mappers/gasto-fijo-pago.mapper';
-import { ResumenPagoGastoFijoMapper } from './mappers/resumen-pago-gasto-fijo.mapper';
 import { GastoFijoRepository } from './repository/gasto-fijo.repository';
-import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
-import { ResumenPagoGastoFijoRepository } from './repository/resumen-pago-gasto-fijo.repository';
 import { GastoFijoController } from './gasto-fijo.controller';
-import { GastoFijoPagoController } from './gasto-fijo-pago.controller';
-import { ResumenPagoGastoFijoController } from './resumen-pago-gasto-fijo.controller';
 import { GastoFijoService } from './gasto-fijo.service';
-import { GastoFijoPagoService } from './gasto-fijo-pago.service';
-import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
+
 import { CategoriaModule } from '../categoria/categoria.module';
 import { UsuarioModule } from '../usuario/usuario.module';
 import { InfoInicialModule } from '../info-inicial/info-inicial.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
-import { MovimientoModule } from '../movimiento/movimiento.module';
-import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
+import { PagoGastoFijoModule } from '../pagos-gasto-fijo/pago-gasto-fijo.module';
 
 /**
- * Módulo de Gastos Fijos.
- * Incluye:
- * - Cabecera (GastoFijo): gastos fijos del usuario.
- * - Pagos (GastoFijoPago): registros por mes de cada gasto fijo.
- * - Resumen (ResumenPagoGastoFijo): resumen de pagos por información inicial.
+ * Módulo de Gastos Fijos (cabecera).
+ * Solo incluye la entidad GastoFijo y su CRUD.
+ * Los pagos por mes están en PagoGastoFijoModule.
+ * El resumen por información inicial está en resumen-gasto-fijo.
  */
 @Module({
   imports: [
-    TypeOrmModule.forFeature([GastoFijo, GastoFijoPago, ResumenPagoGastoFijo]),
+    TypeOrmModule.forFeature([GastoFijo]),
     forwardRef(() => CategoriaModule),
     forwardRef(() => UsuarioModule),
     forwardRef(() => InfoInicialModule),
     forwardRef(() => MedioPagoModule),
-    forwardRef(() => MovimientoModule),
+    forwardRef(() => PagoGastoFijoModule),
   ],
-  controllers: [GastoFijoController, GastoFijoPagoController, ResumenPagoGastoFijoController],
-  providers: [
-    GastoFijoService,
-    GastoFijoPagoService,
-    ResumenPagoGastoFijoService,
-    GastoFijoRepository,
-    GastoFijoPagoRepository,
-    ResumenPagoGastoFijoRepository,
-    GastoFijoMapper,
-    GastoFijoPagoMapper,
-    ResumenPagoGastoFijoMapper,
-    MedioPagoMapper,
-  ],
-  exports: [
-    GastoFijoService,
-    GastoFijoPagoService,
-    ResumenPagoGastoFijoService,
-    GastoFijoRepository,
-    GastoFijoPagoRepository,
-    ResumenPagoGastoFijoRepository,
-    GastoFijoMapper,
-    GastoFijoPagoMapper,
-    ResumenPagoGastoFijoMapper,
-  ],
+  controllers: [GastoFijoController],
+  providers: [GastoFijoService, GastoFijoRepository, GastoFijoMapper],
+  exports: [GastoFijoService, GastoFijoRepository, GastoFijoMapper],
 })
 export class GastoFijoModule {}

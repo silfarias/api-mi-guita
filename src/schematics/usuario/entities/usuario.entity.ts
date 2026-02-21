@@ -3,7 +3,7 @@ import { BaseEntity } from 'src/common/models/baseentity';
 import { Persona } from 'src/schematics/persona/entities/persona.entity';
 import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
-import { ResumenPagoGastoFijo } from 'src/schematics/gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
+import { ResumenPagoGastoFijo } from 'src/schematics/resumen-gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
 
 @Entity('user_01_cab_usuario')
 export class Usuario extends BaseEntity {

@@ -14,8 +14,8 @@ export class ResumenPagoGastoFijo extends BaseEntity {
     @JoinColumn({ name: 'rela01_user' })
     usuario: Usuario;
 
-    @Column({ name: 'gas03_monto_total', type: 'decimal', precision: 10, scale: 2, nullable: false, default: 0 })
-    montoTotal: number;
+    @Column({ name: 'gas03_monto_total_definido', type: 'decimal', precision: 10, scale: 2, nullable: false, default: 0 })
+    montoTotalDefinido: number;
 
     @Column({ name: 'gas03_monto_pagado', type: 'decimal', precision: 10, scale: 2, nullable: false, default: 0 })
     montoPagado: number;

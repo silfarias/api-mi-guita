@@ -2,7 +2,7 @@ import { BaseEntity } from "src/common/models/baseentity";
 import { Categoria } from "src/schematics/categoria/entities/categoria.entity";
 import { Usuario } from "src/schematics/usuario/entities/usuario.entity";
 import { Column, Entity, ManyToOne, JoinColumn, OneToMany } from "typeorm";
-import { GastoFijoPago } from "./gasto-fijo-pago.entity";
+import { PagoGastoFijo } from "src/schematics/pagos-gasto-fijo/entities/pago-gasto-fijo.entity";
 import { MedioPago } from "src/schematics/medio-pago/entities/medio-pago.entity";
 
 
@@ -33,8 +33,8 @@ export class GastoFijo extends BaseEntity {
     @JoinColumn({ name: 'rela01_user' })
     usuario: Usuario;
 
-    @OneToMany(() => GastoFijoPago, (gastoFijoPago) => gastoFijoPago.gastoFijo)
-    gastosFijosPagos: GastoFijoPago[];
+    @OneToMany(() => PagoGastoFijo, (pagoGastoFijo) => pagoGastoFijo.gastoFijo)
+    pagosGastoFijo: PagoGastoFijo[];
 
     static fromId(id: number) {
         const gastoFijo = new GastoFijo();

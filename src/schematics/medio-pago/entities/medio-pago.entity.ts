@@ -3,7 +3,7 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/common/models/baseentity';
 import { TipoMedioPagoEnum } from 'src/common/enums/tipo-medio-pago-enum';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
-import { GastoFijoPago } from 'src/schematics/gasto-fijo/entities/gasto-fijo-pago.entity';
+import { PagoGastoFijo } from 'src/schematics/pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
 import { InfoInicialMedioPago } from 'src/schematics/info-inicial/entities/info-inicial-mediopago.entity';
 import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
 
@@ -25,8 +25,8 @@ export class MedioPago extends BaseEntity {
   @OneToMany(() => GastoFijo, (gastoFijo) => gastoFijo.medioPago)
   gastosFijos: GastoFijo[];
 
-  @OneToMany(() => GastoFijoPago, (gastoFijoPago) => gastoFijoPago.medioPago)
-  gastosFijosPagos: GastoFijoPago[];
+  @OneToMany(() => PagoGastoFijo, (pagoGastoFijo) => pagoGastoFijo.medioPago)
+  pagosGastoFijo: PagoGastoFijo[];
 
   static fromId(id: number) {
     const medioPago = new MedioPago();

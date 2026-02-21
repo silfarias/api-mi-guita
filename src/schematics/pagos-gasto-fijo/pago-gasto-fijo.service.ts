@@ -7,20 +7,19 @@ import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
 
-import { InfoInicial } from '../info-inicial/entities/info-inicial.entity';
-import { GastoFijo } from './entities/gasto-fijo.entity';
-import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
-import { GastoFijoRepository } from './repository/gasto-fijo.repository';
-import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
-import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
-import { MovimientoService } from '../movimiento/movimiento.service';
-import { ResumenPagoGastoFijoService } from './resumen-pago-gasto-fijo.service';
+import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
+import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
+import { GastoFijoRepository } from 'src/schematics/gasto-fijo/repository/gasto-fijo.repository';
+import { ResumenPagoGastoFijoService } from 'src/schematics/resumen-gasto-fijo/resumen-pago-gasto-fijo.service';
+import { MovimientoService } from 'src/schematics/movimiento/movimiento.service';
 
-import { GastoFijoPagoMapper } from './mappers/gasto-fijo-pago.mapper';
-import { GastoFijoPagoDTO, PagosGastoFijoDTO } from './dto/gasto-fijo-pago.dto';
-import { CreateGastoFijoPagoRequestDto } from './dto/create-gasto-fijo-pago-request.dto';
-import { UpdateGastoFijoPagoRequestDto } from './dto/update-gasto-fijo-pago-request.dto';
-import { SearchGastoFijoPagoRequestDto } from './dto/search-gasto-fijo-pago-request.dto';
+import { PagoGastoFijo } from './entities/pago-gasto-fijo.entity';
+import { PagoGastoFijoRepository } from './repository/pago-gasto-fijo.repository';
+import { PagoGastoFijoMapper } from './mapper/pago-gasto-fijo.mapper';
+import { PagoGastoFijoDTO, PagosGastoFijoDTO } from './dto/pago-gasto-fijo.dto';
+import { CreatePagoGastoFijoRequestDto } from './dto/create-pago-gasto-fijo-request.dto';
+import { UpdatePagoGastoFijoRequestDto } from './dto/update-pago-gasto-fijo-request.dto';
+import { SearchPagoGastoFijoRequestDto } from './dto/search-pago-gasto-fijo-request.dto';
 
 const RELATIONS_FIND_ONE = [
   'gastoFijo',
@@ -32,34 +31,32 @@ const RELATIONS_FIND_ONE = [
 ] as const;
 
 @Injectable()
-export class GastoFijoPagoService {
+export class PagoGastoFijoService {
   constructor(
-    private readonly gastoFijoPagoMapper: GastoFijoPagoMapper,
-    private readonly gastoFijoPagoRepository: GastoFijoPagoRepository,
+    private readonly pagoGastoFijoMapper: PagoGastoFijoMapper,
+    private readonly pagoGastoFijoRepository: PagoGastoFijoRepository,
     private readonly gastoFijoRepository: GastoFijoRepository,
     private readonly getEntityService: GetEntityService,
     private readonly errorHandler: ErrorHandlerService,
-    @Inject(forwardRef(() => InfoInicialRepository))
-    private readonly infoInicialRepository: InfoInicialRepository,
     @Inject(forwardRef(() => ResumenPagoGastoFijoService))
     private readonly resumenPagoGastoFijoService: ResumenPagoGastoFijoService,
     private readonly movimientoService: MovimientoService,
   ) {}
 
-  async findOne(id: number, usuarioId: number): Promise<GastoFijoPagoDTO> {
+  async findOne(id: number, usuarioId: number): Promise<PagoGastoFijoDTO> {
     try {
-      const pago = await this.getEntityService.findById(GastoFijoPago, id, [...RELATIONS_FIND_ONE]);
+      const pago = await this.getEntityService.findById(PagoGastoFijo, id, [...RELATIONS_FIND_ONE]);
       this.checkPagoBelongsToUser(pago, usuarioId);
-      return this.gastoFijoPagoMapper.entity2DTO(pago);
+      return this.pagoGastoFijoMapper.entity2DTO(pago);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       this.errorHandler.handleError(error);
     }
   }
 
-  async search(request: SearchGastoFijoPagoRequestDto, usuarioId: number): Promise<PageDto<GastoFijoPagoDTO>> {
-    const page = await this.gastoFijoPagoRepository.search(request, usuarioId);
-    return this.gastoFijoPagoMapper.page2Dto(request, page);
+  async search(request: SearchPagoGastoFijoRequestDto, usuarioId: number): Promise<PageDto<PagoGastoFijoDTO>> {
+    const page = await this.pagoGastoFijoRepository.search(request, usuarioId);
+    return this.pagoGastoFijoMapper.page2Dto(request, page);
   }
 
   async getPagosPorInfoInicial(infoInicialId: number, usuarioId: number): Promise<PagosGastoFijoDTO> {
@@ -73,12 +70,12 @@ export class GastoFijoPagoService {
     }
     const [gastosFijosActivos, gastosFijosPagos] = await Promise.all([
       this.gastoFijoRepository.getGastosFijosActivos(usuarioId),
-      this.gastoFijoPagoRepository.findByInfoInicialIdAndUsuario(infoInicialId, usuarioId),
+      this.pagoGastoFijoRepository.findByInfoInicialIdAndUsuario(infoInicialId, usuarioId),
     ]);
-    return this.gastoFijoPagoMapper.toPagosGastoFijoDTO(infoInicial, gastosFijosActivos, gastosFijosPagos);
+    return this.pagoGastoFijoMapper.toPagosGastoFijoDTO(infoInicial, gastosFijosActivos, gastosFijosPagos);
   }
 
-  async create(request: CreateGastoFijoPagoRequestDto, usuarioId: number): Promise<GastoFijoPagoDTO> {
+  async create(request: CreatePagoGastoFijoRequestDto, usuarioId: number): Promise<PagoGastoFijoDTO> {
     try {
       const gastoFijoEntity = await this.getEntityService.findById(GastoFijo, request.gastoFijoId, ['usuario', 'categoria']);
       if (gastoFijoEntity.usuario.id !== usuarioId) {
@@ -90,7 +87,7 @@ export class GastoFijoPagoService {
         this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'No tienes permiso para crear pagos en esta información inicial');
       }
 
-      const existente = await this.gastoFijoPagoRepository.findByGastoFijoAndInfoInicial(
+      const existente = await this.pagoGastoFijoRepository.findByGastoFijoAndInfoInicial(
         request.gastoFijoId,
         request.infoInicialId,
       );
@@ -98,8 +95,8 @@ export class GastoFijoPagoService {
         this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'Ya existe un registro de pago para este gasto fijo en este mes');
       }
 
-      const newPago = this.gastoFijoPagoMapper.createDTO2Entity(request, gastoFijoEntity, infoInicial);
-      const saved = await this.gastoFijoPagoRepository.save(newPago);
+      const newPago = this.pagoGastoFijoMapper.createDTO2Entity(request, gastoFijoEntity, infoInicial);
+      const saved = await this.pagoGastoFijoRepository.save(newPago);
 
       await this.movimientoService.create(
         {
@@ -116,17 +113,17 @@ export class GastoFijoPagoService {
 
       await this.resumenPagoGastoFijoService.recalcularResumen(infoInicial.id);
 
-      const withRelations = await this.getEntityService.findById(GastoFijoPago, saved.id, [...RELATIONS_FIND_ONE]);
-      return this.gastoFijoPagoMapper.entity2DTO(withRelations);
+      const withRelations = await this.getEntityService.findById(PagoGastoFijo, saved.id, [...RELATIONS_FIND_ONE]);
+      return this.pagoGastoFijoMapper.entity2DTO(withRelations);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       this.errorHandler.handleError(error);
     }
   }
 
-  async update(id: number, request: UpdateGastoFijoPagoRequestDto, usuarioId: number): Promise<GastoFijoPagoDTO> {
+  async update(id: number, request: UpdatePagoGastoFijoRequestDto, usuarioId: number): Promise<PagoGastoFijoDTO> {
     try {
-      const pago = await this.getEntityService.findById(GastoFijoPago, id, [
+      const pago = await this.getEntityService.findById(PagoGastoFijo, id, [
         'gastoFijo',
         'gastoFijo.usuario',
         'gastoFijo.categoria',
@@ -148,12 +145,12 @@ export class GastoFijoPagoService {
         }
       }
 
-      const updated = this.gastoFijoPagoMapper.updateDTO2Entity(pago, request);
-      await this.gastoFijoPagoRepository.save(updated);
+      const updated = this.pagoGastoFijoMapper.updateDTO2Entity(pago, request);
+      await this.pagoGastoFijoRepository.save(updated);
       await this.resumenPagoGastoFijoService.recalcularResumen(pago.infoInicial.id);
 
-      const withRelations = await this.getEntityService.findById(GastoFijoPago, id, [...RELATIONS_FIND_ONE]);
-      return this.gastoFijoPagoMapper.entity2DTO(withRelations);
+      const withRelations = await this.getEntityService.findById(PagoGastoFijo, id, [...RELATIONS_FIND_ONE]);
+      return this.pagoGastoFijoMapper.entity2DTO(withRelations);
     } catch (error) {
       if (error instanceof HttpException) throw error;
       this.errorHandler.handleError(error);
@@ -162,10 +159,10 @@ export class GastoFijoPagoService {
 
   async remove(id: number, usuarioId: number): Promise<string> {
     try {
-      const pago = await this.getEntityService.findById(GastoFijoPago, id, ['gastoFijo', 'gastoFijo.usuario', 'infoInicial', 'infoInicial.usuario']);
+      const pago = await this.getEntityService.findById(PagoGastoFijo, id, ['gastoFijo', 'gastoFijo.usuario', 'infoInicial', 'infoInicial.usuario']);
       this.checkPagoBelongsToUser(pago, usuarioId);
-      await this.gastoFijoPagoRepository.softRemove(pago);
-      return 'Gasto fijo pago eliminado correctamente';
+      await this.pagoGastoFijoRepository.softRemove(pago);
+      return 'Pago gasto fijo eliminado correctamente';
     } catch (error) {
       if (error instanceof HttpException) throw error;
       this.errorHandler.handleError(error);
@@ -181,13 +178,13 @@ export class GastoFijoPagoService {
       const gastosFijosActivos = await this.gastoFijoRepository.getGastosFijosActivos(usuarioId);
       if (gastosFijosActivos.length === 0) return;
 
-      const idsConPago = await this.gastoFijoPagoRepository.getGastosFijosIdsConPago(infoInicial.id);
+      const idsConPago = await this.pagoGastoFijoRepository.getGastosFijosIdsConPago(infoInicial.id);
       const setIdsConPago = new Set(idsConPago);
 
-      const gastosFijosPagos: GastoFijoPago[] = gastosFijosActivos
+      const gastosFijosPagos: PagoGastoFijo[] = gastosFijosActivos
         .filter((gf) => !setIdsConPago.has(gf.id))
         .map((gastoFijo) => {
-          const pago = new GastoFijoPago();
+          const pago = new PagoGastoFijo();
           pago.gastoFijo = gastoFijo;
           pago.infoInicial = infoInicial;
           pago.medioPago = null;
@@ -198,9 +195,9 @@ export class GastoFijoPagoService {
 
       if (gastosFijosPagos.length > 0) {
         if (manager) {
-          await manager.getRepository(GastoFijoPago).save(gastosFijosPagos);
+          await manager.getRepository(PagoGastoFijo).save(gastosFijosPagos);
         } else {
-          await this.gastoFijoPagoRepository.save(gastosFijosPagos);
+          await this.pagoGastoFijoRepository.save(gastosFijosPagos);
         }
       }
     } catch (error) {
@@ -208,9 +205,9 @@ export class GastoFijoPagoService {
     }
   }
 
-  private checkPagoBelongsToUser(pago: GastoFijoPago, usuarioId: number): void {
+  private checkPagoBelongsToUser(pago: PagoGastoFijo, usuarioId: number): void {
     if (pago.gastoFijo?.usuario?.id !== usuarioId || pago.infoInicial?.usuario?.id !== usuarioId) {
-      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'No tienes permiso para este gasto fijo pago');
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'No tienes permiso para este pago de gasto fijo');
     }
   }
 }

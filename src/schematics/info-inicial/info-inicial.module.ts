@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { InfoInicial } from './entities/info-inicial.entity';
 import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
-import { ResumenPagoGastoFijo } from '../gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
+import { ResumenPagoGastoFijo } from '../resumen-gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
 import { InfoInicialMapper } from './mappers/info-inicial.mapper';
 import { InfoInicialRepository } from './repository/info-inicial.repository';
 import { InfoInicialMedioPagoRepository } from './repository/info-inicial-mediopago.repository';
@@ -13,6 +13,8 @@ import { UsuarioModule } from '../usuario/usuario.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
 import { MovimientoModule } from '../movimiento/movimiento.module';
 import { GastoFijoModule } from '../gasto-fijo/gasto-fijo.module';
+import { PagoGastoFijoModule } from '../pagos-gasto-fijo/pago-gasto-fijo.module';
+import { ResumenPagoGastoFijoModule } from '../resumen-gasto-fijo/resumen-pago-gasto-fijo.module';
 
 @Module({
   imports: [
@@ -21,6 +23,8 @@ import { GastoFijoModule } from '../gasto-fijo/gasto-fijo.module';
     forwardRef(() => MedioPagoModule),
     forwardRef(() => MovimientoModule),
     forwardRef(() => GastoFijoModule),
+    forwardRef(() => PagoGastoFijoModule),
+    forwardRef(() => ResumenPagoGastoFijoModule),
   ],
   controllers: [InfoInicialController],
   providers: [

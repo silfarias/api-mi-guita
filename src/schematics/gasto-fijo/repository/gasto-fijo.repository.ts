@@ -17,8 +17,8 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
       .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
-      .leftJoinAndSelect('gastoFijo.gastosFijosPagos', 'gastosFijosPagos')
-      .leftJoinAndSelect('gastosFijosPagos.infoInicial', 'infoInicial')
+      .leftJoinAndSelect('gastoFijo.pagosGastoFijo', 'pagosGastoFijo')
+      .leftJoinAndSelect('pagosGastoFijo.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
     if (request.id != null) qb.andWhere('gastoFijo.id = :id', { id: request.id });

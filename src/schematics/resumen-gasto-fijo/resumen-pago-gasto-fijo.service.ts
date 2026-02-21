@@ -5,13 +5,13 @@ import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 
 import { InfoInicial } from '../info-inicial/entities/info-inicial.entity';
-import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
+import { PagoGastoFijo } from '../pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
 import { ResumenPagoGastoFijo } from './entities/resumen-pago-gasto-fijo.entity';
 import { ResumenPagoGastoFijoDTO } from './dto/resumen-pago-gasto-fijo.dto';
 import { ResumenPagoGastoFijoRepository } from './repository/resumen-pago-gasto-fijo.repository';
-import { ResumenPagoGastoFijoMapper } from './mappers/resumen-pago-gasto-fijo.mapper';
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
-import { GastoFijoPagoRepository } from './repository/gasto-fijo-pago.repository';
+import { PagoGastoFijoRepository } from '../pagos-gasto-fijo/repository/pago-gasto-fijo.repository';
+import { ResumenPagoGastoFijoMapper } from './mapper/resumen-pago-gasto-fijo.mapper';
 
 @Injectable()
 export class ResumenPagoGastoFijoService {
@@ -21,8 +21,8 @@ export class ResumenPagoGastoFijoService {
     private readonly errorHandler: ErrorHandlerService,
     @Inject(forwardRef(() => InfoInicialRepository))
     private readonly infoInicialRepository: InfoInicialRepository,
-    @Inject(forwardRef(() => GastoFijoPagoRepository))
-    private readonly gastoFijoPagoRepository: GastoFijoPagoRepository,
+    @Inject(forwardRef(() => PagoGastoFijoRepository))
+    private readonly pagoGastoFijoRepository: PagoGastoFijoRepository,
   ) {}
 
   /**
@@ -64,7 +64,7 @@ export class ResumenPagoGastoFijoService {
       resumen = new ResumenPagoGastoFijo();
       resumen.infoInicial = infoInicial;
       resumen.usuario = infoInicial.usuario;
-      resumen.montoTotal = 0;
+      resumen.montoTotalDefinido = 0;
       resumen.montoPagado = 0;
       resumen.cantidadGastosTotales = 0;
       resumen.cantidadGastosPagados = 0;
@@ -82,7 +82,7 @@ export class ResumenPagoGastoFijoService {
    */
   async recalcularResumen(infoInicialId: number, manager?: EntityManager): Promise<void> {
     const repoResumen = manager ? manager.getRepository(ResumenPagoGastoFijo) : this.resumenRepository;
-    const repoPago = manager ? manager.getRepository(GastoFijoPago) : this.gastoFijoPagoRepository;
+    const repoPago = manager ? manager.getRepository(PagoGastoFijo) : this.pagoGastoFijoRepository;
 
     const resumen = manager
       ? await repoResumen.findOne({
@@ -110,7 +110,7 @@ export class ResumenPagoGastoFijoService {
       }
     });
 
-    resumen.montoTotal = montoTotal;
+    resumen.montoTotalDefinido = montoTotal;
     resumen.montoPagado = montoPagado;
     resumen.cantidadGastosTotales = gastosFijosPagos.length;
     resumen.cantidadGastosPagados = cantidadGastosPagados;

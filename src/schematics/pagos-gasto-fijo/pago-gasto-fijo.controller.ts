@@ -1,9 +1,7 @@
 import {
   Controller,
-  Post,
   Get,
   Patch,
-  Delete,
   Param,
   Body,
   ParseIntPipe,
@@ -29,19 +27,19 @@ import { plainToInstance } from 'class-transformer';
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PageDto } from 'src/common/dto/page.dto';
 
-import { GastoFijoPagoService } from './gasto-fijo-pago.service';
-import { GastoFijoPagoDTO, PagosGastoFijoDTO } from './dto/gasto-fijo-pago.dto';
-import { UpdateGastoFijoPagoRequestDto } from './dto/update-gasto-fijo-pago-request.dto';
-import { SearchGastoFijoPagoRequestDto } from './dto/search-gasto-fijo-pago-request.dto';
+import { PagoGastoFijoService } from './pago-gasto-fijo.service';
+import { PagoGastoFijoDTO, PagosGastoFijoDTO } from './dto/pago-gasto-fijo.dto';
+import { UpdatePagoGastoFijoRequestDto } from './dto/update-pago-gasto-fijo-request.dto';
+import { SearchPagoGastoFijoRequestDto } from './dto/search-pago-gasto-fijo-request.dto';
 import { PorInfoInicialRequestDto } from './dto/por-info-inicial-request.dto';
 
-@ApiTags('Gasto Fijo Pago')
-@Controller('gasto-fijo-pago')
+@ApiTags('Pago Gasto Fijo')
+@Controller('pago-gasto-fijo')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('authorization')
-export class GastoFijoPagoController {
+export class PagoGastoFijoController {
   constructor(
-    private gastoFijoPagoService: GastoFijoPagoService,
+    private readonly pagoGastoFijoService: PagoGastoFijoService,
   ) {}
 
   @Get('por-info-inicial')
@@ -65,64 +63,63 @@ export class GastoFijoPagoController {
     const reqDto = plainToInstance(PorInfoInicialRequestDto, query, {
       enableImplicitConversion: true,
     });
-    return await this.gastoFijoPagoService.getPagosPorInfoInicial(
+    return await this.pagoGastoFijoService.getPagosPorInfoInicial(
       Number(reqDto.infoInicialId),
       req.user.id,
     );
   }
 
   @Get('search')
-  @ApiOperation({ summary: 'Buscar gastos fijos pagos por usuario autenticado' })
+  @ApiOperation({ summary: 'Buscar pagos de gasto fijo por usuario autenticado' })
   @ApiOkResponse({
-    type: PageDto<GastoFijoPagoDTO>,
-    description: 'Lista paginada de Gastos Fijos Pagos del usuario autenticado',
+    type: PageDto<PagoGastoFijoDTO>,
+    description: 'Lista paginada de Pagos Gasto Fijo del usuario autenticado',
   })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async search(
-    @Query() request: SearchGastoFijoPagoRequestDto,
+    @Query() request: SearchPagoGastoFijoRequestDto,
     @Request() req: any,
-  ): Promise<PageDto<GastoFijoPagoDTO>> {
-    const reqDto = plainToInstance(SearchGastoFijoPagoRequestDto, request, { enableImplicitConversion: true });
-    return this.gastoFijoPagoService.search(reqDto, req.user.id);
+  ): Promise<PageDto<PagoGastoFijoDTO>> {
+    const reqDto = plainToInstance(SearchPagoGastoFijoRequestDto, request, { enableImplicitConversion: true });
+    return this.pagoGastoFijoService.search(reqDto, req.user.id);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener gasto fijo pago por ID' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Gasto Fijo Pago' })
+  @ApiOperation({ summary: 'Obtener pago gasto fijo por ID' })
+  @ApiParam({ name: 'id', required: true, description: 'ID del Pago Gasto Fijo' })
   @ApiOkResponse({
-    type: GastoFijoPagoDTO,
-    description: 'Gasto fijo pago obtenido correctamente',
+    type: PagoGastoFijoDTO,
+    description: 'Pago gasto fijo obtenido correctamente',
   })
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el gasto fijo pago' })
+  @ApiNotFoundResponse({ description: 'No se encontró el pago gasto fijo' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @Request() req: any,
-  ): Promise<GastoFijoPagoDTO> {
-    return await this.gastoFijoPagoService.findOne(id, req.user.id);
+  ): Promise<PagoGastoFijoDTO> {
+    return await this.pagoGastoFijoService.findOne(id, req.user.id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Actualizar gasto fijo pago (marcar como pagado/no pagado)' })
-  @ApiParam({ name: 'id', required: true, description: 'ID del Gasto Fijo Pago' })
+  @ApiOperation({ summary: 'Actualizar pago gasto fijo (marcar como pagado/no pagado)' })
+  @ApiParam({ name: 'id', required: true, description: 'ID del Pago Gasto Fijo' })
   @ApiBody({
-    type: UpdateGastoFijoPagoRequestDto,
-    description: 'Datos actualizados del gasto fijo pago',
+    type: UpdatePagoGastoFijoRequestDto,
+    description: 'Datos actualizados del pago gasto fijo',
   })
   @ApiOkResponse({
-    type: GastoFijoPagoDTO,
-    description: 'Gasto fijo pago actualizado correctamente',
+    type: PagoGastoFijoDTO,
+    description: 'Pago gasto fijo actualizado correctamente',
   })
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
-  @ApiNotFoundResponse({ description: 'No se encontró el gasto fijo pago' })
+  @ApiNotFoundResponse({ description: 'No se encontró el pago gasto fijo' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
   async update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() updateGastoFijoPagoRequestDto: UpdateGastoFijoPagoRequestDto,
+    @Body() updatePagoGastoFijoRequestDto: UpdatePagoGastoFijoRequestDto,
     @Request() req: any,
-  ): Promise<GastoFijoPagoDTO> {
-    return await this.gastoFijoPagoService.update(id, updateGastoFijoPagoRequestDto, req.user.id);
+  ): Promise<PagoGastoFijoDTO> {
+    return await this.pagoGastoFijoService.update(id, updatePagoGastoFijoRequestDto, req.user.id);
   }
-
 }

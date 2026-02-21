@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsBoolean, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class UpdateGastoFijoPagoRequestDto {
+export class UpdatePagoGastoFijoRequestDto {
 
   @ApiProperty({ description: 'ID del medio de pago', type: Number, required: false })
   @IsOptional()

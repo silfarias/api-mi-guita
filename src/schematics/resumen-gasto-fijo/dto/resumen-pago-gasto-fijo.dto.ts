@@ -16,9 +16,9 @@ export class ResumenPagoGastoFijoDTO extends CommonDTO {
   @Type(() => UsuarioDTO)
   usuario: UsuarioDTO;
 
-  @ApiProperty({ description: 'Monto total de todos los gastos fijos del mes (suma de montoFijo o montoPago)', example: 50000.00 })
+  @ApiProperty({ description: 'Monto total de todos los gastos fijos del mes definidos', example: 50000.00 })
   @Expose()
-  montoTotal: number;
+  montoTotalDefinido: number;
 
   @ApiProperty({ description: 'Monto total pagado de gastos fijos en el mes', example: 30000.00 })
   @Expose()

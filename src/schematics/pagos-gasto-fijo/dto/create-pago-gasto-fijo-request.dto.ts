@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsBoolean, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateGastoFijoPagoRequestDto {
+export class CreatePagoGastoFijoRequestDto {
 
   @ApiProperty({ 
     description: 'ID del gasto fijo', 
