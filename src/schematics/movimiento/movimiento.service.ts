@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { CreateMovimientoRequestDto } from './dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from './dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from './dto/search-movimiento-request.dto';
@@ -10,6 +10,7 @@ import { ERRORS } from 'src/common/errors/errors-codes';
 import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
 import { CategoriaRepository } from '../categoria/repository/categoria.repository';
 import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
+import { ReportesService } from '../reportes/reportes.service';
 
 @Injectable()
 export class MovimientoService {
@@ -19,6 +20,8 @@ export class MovimientoService {
     private infoInicialRepository: InfoInicialRepository,
     private categoriaRepository: CategoriaRepository,
     private medioPagoRepository: MedioPagoRepository,
+    @Inject(forwardRef(() => ReportesService))
+    private reportesService: ReportesService,
   ) {}
 
   async findOne(id: number): Promise<MovimientoDTO> {
@@ -91,7 +94,7 @@ export class MovimientoService {
       // Crear el movimiento
       const newMovimiento = this.movimientoMapper.createDTO2Entity(request, infoInicial, categoria, medioPago);
       const movimientoSaved = await this.movimientoRepository.save(newMovimiento);
-
+      await this.reportesService.recalcularResumenMensual(infoInicial.id);
       return await this.movimientoMapper.entity2SimpleDTO(movimientoSaved);
 
     } catch (error) {
@@ -168,10 +171,9 @@ export class MovimientoService {
         medioPago = nuevoMedioPago;
       }
 
-      // Actualizar el movimiento
       const updateMovimiento = this.movimientoMapper.updateDTO2Entity(movimiento, request, categoria, medioPago);
       await this.movimientoRepository.save(updateMovimiento);
-
+      await this.reportesService.recalcularResumenMensual(movimiento.infoInicial.id);
       return this.movimientoMapper.entity2SimpleDTO(movimiento);
     } catch (error) {
       if (
@@ -211,6 +213,7 @@ export class MovimientoService {
     }
 
     await this.movimientoRepository.softRemove(movimiento);
+    await this.reportesService.recalcularResumenMensual(movimiento.infoInicial.id);
     return 'Movimiento eliminado correctamente';
   }
 }

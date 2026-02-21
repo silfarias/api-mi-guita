@@ -27,6 +27,8 @@ export class ResumenPagoGastoFijoService {
 
   /**
    * Crea o inicializa un resumen para una InfoInicial.
+   * Inicia todos los campos en 0; recalcularResumen los actualiza según gastos fijos (montoTotalDefinido
+   * desde gastoFijo.montoFijo) y pagos realizados (montoPagado desde pago.montoPago de los pagados).
    * Si se recibe manager (transacción), todas las lecturas/escrituras usan ese manager.
    */
   async crearOInicializarResumen(
@@ -79,6 +81,12 @@ export class ResumenPagoGastoFijoService {
 
   /**
    * Recalcula el resumen basado en los gastos fijos pagos de la InfoInicial.
+   *
+   * - montoTotalDefinido: suma de gastoFijo.montoFijo solo de los gastos que tienen monto definido
+   *   (luz, agua, impuestos pueden no tener monto fijo y no entran en este total).
+   * - montoPagado: suma de lo que el usuario ya pagó (pago.montoPago en registros marcados como pagados).
+   *   En gastos sin monto fijo, al pagar se envía el monto abonado; en gastos con monto fijo se usa ese monto.
+   * - No existe un "total a pagar este mes" único porque no todos los gastos tienen monto definido.
    */
   async recalcularResumen(infoInicialId: number, manager?: EntityManager): Promise<void> {
     const repoResumen = manager ? manager.getRepository(ResumenPagoGastoFijo) : this.resumenRepository;
@@ -98,19 +106,24 @@ export class ResumenPagoGastoFijoService {
       relations: ['gastoFijo'],
     });
 
-    let montoTotal = 0;
+    let montoTotalDefinido = 0;
     let montoPagado = 0;
     let cantidadGastosPagados = 0;
 
     gastosFijosPagos.forEach((pago) => {
-      montoTotal += Number(pago.montoPago ?? 0);
+      // Solo los gastos fijos con monto definido (ej. alquiler, Netflix) suman al total definido
+      const montoFijo = pago.gastoFijo?.montoFijo;
+      if (montoFijo != null) {
+        montoTotalDefinido += Number(montoFijo);
+      }
+      // Lo que el usuario ya pagó (al marcar como pagado puede enviar el monto en gastos variables)
       if (pago.pagado) {
         montoPagado += Number(pago.montoPago ?? 0);
         cantidadGastosPagados++;
       }
     });
 
-    resumen.montoTotalDefinido = montoTotal;
+    resumen.montoTotalDefinido = montoTotalDefinido;
     resumen.montoPagado = montoPagado;
     resumen.cantidadGastosTotales = gastosFijosPagos.length;
     resumen.cantidadGastosPagados = cantidadGastosPagados;

@@ -8,6 +8,7 @@ import { MovimientoService } from './movimiento.service';
 import { InfoInicialModule } from '../info-inicial/info-inicial.module';
 import { CategoriaModule } from '../categoria/categoria.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
+import { ReportesModule } from '../reportes/reportes.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { MedioPagoModule } from '../medio-pago/medio-pago.module';
     forwardRef(() => InfoInicialModule),
     forwardRef(() => CategoriaModule),
     forwardRef(() => MedioPagoModule),
+    forwardRef(() => ReportesModule),
   ],
   controllers: [MovimientoController],
   providers: [MovimientoService, MovimientoRepository, MovimientoMapper],
