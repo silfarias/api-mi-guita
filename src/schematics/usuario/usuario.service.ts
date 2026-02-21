@@ -15,8 +15,8 @@ import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { Persona } from '../persona/entities/persona.entity';
 import { PersonaService } from '../persona/persona.service';
-import { R2StorageService } from 'src/common/services/r2-storage.service';
 import { LoginUsuarioRequestDto } from './dto/login-usuario-request.dto';
+import { CloudinaryService } from 'src/common/services/cloudinary.service';
 
 const RELATIONS = ['persona'] as const;
 
@@ -30,7 +30,7 @@ export class UsuarioService {
     private readonly errorHandler: ErrorHandlerService,
 
     private readonly personaService: PersonaService,
-    private readonly r2Storage: R2StorageService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   /** Busca un usuario por criterio. Retorna null si no existe o no se pasa criterio. */
@@ -224,7 +224,7 @@ export class UsuarioService {
     if (!file) return null;
     const safeName = file.originalname?.replace(/[^a-zA-Z0-9.-]/g, '_') ?? 'foto-perfil';
     const key = `fotos-perfiles/${safeName}_${Date.now()}`;
-    return this.r2Storage.subirArchivo(file.buffer, key, file.mimetype);
+    return this.cloudinaryService.uploadImageFromBuffer(file.buffer, key);
   }
 
   private async resolveFotoPerfilOnUpdate(
@@ -255,7 +255,7 @@ export class UsuarioService {
     try {
       const urlObj = new URL(url);
       let path = urlObj.pathname.startsWith('/') ? urlObj.pathname.slice(1) : urlObj.pathname;
-      if (path) await this.r2Storage.eliminarArchivo(path);
+      if (path) await this.cloudinaryService.deleteImage(path);
     } catch {
       // ignorar errores al eliminar archivo remoto
     }

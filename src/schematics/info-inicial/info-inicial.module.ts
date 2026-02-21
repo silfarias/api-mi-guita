@@ -1,9 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { GetEntityService } from 'src/common/services/get-entity.service';
-import { ErrorHandlerService } from 'src/common/services/error-handler.service';
-
 import { InfoInicial } from './entities/info-inicial.entity';
 import { InfoInicialMedioPago } from './entities/info-inicial-mediopago.entity';
 import { ResumenPagoGastoFijo } from '../gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
@@ -31,8 +28,6 @@ import { GastoFijoModule } from '../gasto-fijo/gasto-fijo.module';
     InfoInicialRepository,
     InfoInicialMedioPagoRepository,
     InfoInicialMapper,
-    GetEntityService,
-    ErrorHandlerService,
   ],
   exports: [InfoInicialService, InfoInicialRepository, InfoInicialMapper],
 })

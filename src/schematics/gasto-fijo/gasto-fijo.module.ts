@@ -1,9 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { GetEntityService } from 'src/common/services/get-entity.service';
-import { ErrorHandlerService } from 'src/common/services/error-handler.service';
-
 import { GastoFijo } from './entities/gasto-fijo.entity';
 import { GastoFijoPago } from './entities/gasto-fijo-pago.entity';
 import { ResumenPagoGastoFijo } from './entities/resumen-pago-gasto-fijo.entity';
@@ -23,6 +20,7 @@ import { CategoriaModule } from '../categoria/categoria.module';
 import { UsuarioModule } from '../usuario/usuario.module';
 import { InfoInicialModule } from '../info-inicial/info-inicial.module';
 import { MedioPagoModule } from '../medio-pago/medio-pago.module';
+import { MovimientoModule } from '../movimiento/movimiento.module';
 import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
 
 /**
@@ -39,6 +37,7 @@ import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
     forwardRef(() => UsuarioModule),
     forwardRef(() => InfoInicialModule),
     forwardRef(() => MedioPagoModule),
+    forwardRef(() => MovimientoModule),
   ],
   controllers: [GastoFijoController, GastoFijoPagoController, ResumenPagoGastoFijoController],
   providers: [
@@ -52,8 +51,6 @@ import { MedioPagoMapper } from '../medio-pago/mappers/medio-pago.mapper';
     GastoFijoPagoMapper,
     ResumenPagoGastoFijoMapper,
     MedioPagoMapper,
-    GetEntityService,
-    ErrorHandlerService,
   ],
   exports: [
     GastoFijoService,

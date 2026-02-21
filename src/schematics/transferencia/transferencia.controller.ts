@@ -18,7 +18,7 @@ import {
 import { TransferenciaService } from './transferencia.service';
 import { CreateTransferenciaRequestDto } from './dto/create-transferencia-request.dto';
 import { TransferenciaDTO } from './dto/transferencia.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('Transferencias')
 @Controller('transferencias')

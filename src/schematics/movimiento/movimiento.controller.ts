@@ -29,7 +29,7 @@ import { SearchMovimientoRequestDto } from './dto/search-movimiento-request.dto'
 import { PageDto } from 'src/common/dto/page.dto';
 import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO } from './dto/movimiento.dto';
 import { plainToInstance } from 'class-transformer';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 
 @ApiTags('Movimiento')
 @Controller('movimiento')

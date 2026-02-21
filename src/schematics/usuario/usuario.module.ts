@@ -15,7 +15,7 @@ import { CloudinaryService } from 'src/common/services/cloudinary.service';
   imports: [
     TypeOrmModule.forFeature([Usuario]),
     forwardRef(() => AuthModule),
-    PersonaModule
+    PersonaModule,
   ],
   controllers: [UsuarioController],
   providers: [UsuarioService, UsuarioRepository, UsuarioMapper, CloudinaryService],
