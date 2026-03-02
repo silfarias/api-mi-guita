@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsEnum, IsString, IsOptional, IsDate, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsEnum, IsString, IsOptional, IsDate, Min, ValidateIf } from 'class-validator';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
 import { Type } from 'class-transformer';
 
@@ -46,12 +46,13 @@ export class CreateMovimientoRequestDto {
   descripcion: string;
 
   @ApiProperty({
-    description: 'ID de la categoría (opcional para SALDO_INICIAL)',
+    description: 'ID de la categoría (obligatorio para INGRESO y EGRESO; null para SALDO_INICIAL y TRANSFERENCIA)',
     type: Number,
     required: false,
     example: 1,
   })
-  @IsOptional()
+  @ValidateIf((o) => o.tipoMovimiento === TipoMovimientoEnum.INGRESO || o.tipoMovimiento === TipoMovimientoEnum.EGRESO)
+  @IsNotEmpty({ message: 'La categoría es obligatoria para movimientos INGRESO y EGRESO' })
   @Type(() => Number)
   @IsNumber()
   categoriaId?: number;

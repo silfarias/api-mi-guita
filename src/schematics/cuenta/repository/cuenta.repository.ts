@@ -31,4 +31,13 @@ export class CuentaRepository extends Repository<Cuenta> {
 
     return new PageDto<Cuenta>(list, count);
   }
+
+  async sumSaldoByUsuario(usuarioId: number): Promise<number> {
+    const qb = this.createQueryBuilder('cuenta')
+      .leftJoin('cuenta.usuario', 'usuario')
+      .where('usuario.id = :usuarioId', { usuarioId })
+      .select('SUM(cuenta.saldoActual)', 'total');
+    const raw = await qb.getRawOne<{ total: string }>();
+    return Number(raw?.total ?? 0);
+  }
 }

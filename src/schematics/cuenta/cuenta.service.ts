@@ -13,6 +13,8 @@ import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { MovimientoService } from '../movimiento/movimiento.service';
+import { MovimientoRepository } from '../movimiento/repository/movimiento.repository';
+import { TransferenciaRepository } from '../transferencia/repository/transferencia.repository';
 
 @Injectable()
 export class CuentaService {
@@ -23,6 +25,8 @@ export class CuentaService {
     private readonly errorHandler: ErrorHandlerService,
     @Inject(forwardRef(() => MovimientoService))
     private readonly movimientoService: MovimientoService,
+    private readonly movimientoRepository: MovimientoRepository,
+    private readonly transferenciaRepository: TransferenciaRepository,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<CuentaDTO> {
@@ -177,6 +181,22 @@ export class CuentaService {
           code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
           message: 'Cuenta no encontrada',
           details: JSON.stringify({ id }),
+        });
+      }
+      const [countMovimientos, countTransferenciasOrigen, countTransferenciasDestino] = await Promise.all([
+        this.movimientoRepository.count({ where: { cuenta: { id } } }),
+        this.transferenciaRepository.count({ where: { cuentaOrigen: { id } } }),
+        this.transferenciaRepository.count({ where: { cuentaDestino: { id } } }),
+      ]);
+      const totalTransferencias = countTransferenciasOrigen + countTransferenciasDestino;
+      if (countMovimientos > 0 || totalTransferencias > 0) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'No se puede eliminar la cuenta porque tiene movimientos o transferencias asociados',
+          details: JSON.stringify({
+            movimientos: countMovimientos,
+            transferencias: totalTransferencias,
+          }),
         });
       }
       await this.cuentaRepository.softRemove(cuenta);

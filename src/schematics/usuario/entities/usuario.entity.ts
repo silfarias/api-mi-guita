@@ -7,6 +7,7 @@ import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity
 import { Transferencia } from 'src/schematics/transferencia/entities/transferencia.entity';
 import { PagoGastoFijo } from 'src/schematics/pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
 import { ResumenMensual } from 'src/schematics/resumen-mensual/entities/resumen-mensual.entity';
+import { Presupuesto } from 'src/schematics/presupuesto/entities/presupuesto.entity';
 
 @Entity('user_01_cab_usuario')
 export class Usuario extends BaseEntity {
@@ -59,6 +60,9 @@ export class Usuario extends BaseEntity {
 
   @OneToMany(() => ResumenMensual, (resumenMensual) => resumenMensual.usuario)
   resumenesMensuales: ResumenMensual[];
+
+  @OneToMany(() => Presupuesto, (presupuesto) => presupuesto.usuario)
+  presupuestos: Presupuesto[];
 
   static fromId(id: number) {
     const usuario = new Usuario();

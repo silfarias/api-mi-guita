@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { CreateMovimientoRequestDto } from './dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from './dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from './dto/search-movimiento-request.dto';
@@ -7,10 +8,13 @@ import { MovimientoMapper } from './mappers/movimiento.mapper';
 import { MovimientoRepository } from './repository/movimiento.repository';
 import { CuentaRepository } from '../cuenta/repository/cuenta.repository';
 import { CategoriaRepository } from '../categoria/repository/categoria.repository';
+import { SaldoService } from '../cuenta/saldo.service';
 import { PageDto } from 'src/common/dto/page.dto';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 import { Categoria } from '../categoria/entities/categoria.entity';
+import { Movimiento } from './entities/movimiento.entity';
 import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 
 @Injectable()
@@ -20,6 +24,8 @@ export class MovimientoService {
     private movimientoRepository: MovimientoRepository,
     private cuentaRepository: CuentaRepository,
     private categoriaRepository: CategoriaRepository,
+    private saldoService: SaldoService,
+    private dataSource: DataSource,
     private errorHandler: ErrorHandlerService,
   ) {}
 
@@ -38,23 +44,37 @@ export class MovimientoService {
     return this.movimientoMapper.page2AgrupadoDto(request, movimientoPage);
   }
 
-  private async aplicarSaldo(
-    cuentaId: number,
-    monto: number,
-    tipo: TipoMovimientoEnum,
-    sumar: boolean,
-  ): Promise<void> {
-    const cuenta = await this.cuentaRepository.findOne({ where: { id: cuentaId } });
-    if (!cuenta) return;
-    const delta =
-      tipo === TipoMovimientoEnum.INGRESO || tipo === TipoMovimientoEnum.SALDO_INICIAL
-        ? (sumar ? monto : -monto)
-        : tipo === TipoMovimientoEnum.EGRESO
-          ? (sumar ? -monto : monto)
-          : 0;
-    if (delta === 0) return;
-    cuenta.saldoActual = Number(cuenta.saldoActual ?? 0) + delta;
-    await this.cuentaRepository.save(cuenta);
+  /**
+   * Valida que para INGRESO/EGRESO la categoría sea obligatoria y que su tipo coincida.
+   */
+  private validarCategoriaParaTipo(
+    tipoMovimiento: TipoMovimientoEnum,
+    categoria: Categoria | null,
+    categoriaId?: number,
+  ): void {
+    if (tipoMovimiento === TipoMovimientoEnum.SALDO_INICIAL || tipoMovimiento === TipoMovimientoEnum.TRANSFERENCIA) {
+      return;
+    }
+    if (tipoMovimiento === TipoMovimientoEnum.INGRESO || tipoMovimiento === TipoMovimientoEnum.EGRESO) {
+      if (!categoriaId && !categoria) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'La categoría es obligatoria para movimientos de tipo INGRESO y EGRESO',
+        });
+      }
+      if (categoria && tipoMovimiento === TipoMovimientoEnum.INGRESO && categoria.tipo !== TipoCategoriaEnum.INGRESO) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'La categoría debe ser de tipo INGRESO para este movimiento',
+        });
+      }
+      if (categoria && tipoMovimiento === TipoMovimientoEnum.EGRESO && categoria.tipo !== TipoCategoriaEnum.EGRESO) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'La categoría debe ser de tipo EGRESO para este movimiento',
+        });
+      }
+    }
   }
 
   /**
@@ -74,21 +94,38 @@ export class MovimientoService {
         details: JSON.stringify({ cuentaId }),
       });
     }
-    const saldoInicialRequest: CreateMovimientoRequestDto = {
-      cuentaId,
-      tipoMovimiento: TipoMovimientoEnum.SALDO_INICIAL,
-      descripcion: 'Saldo inicial',
-      monto,
-      fecha: new Date()
-    };
-    const newMovimiento = await this.movimientoMapper.createDTO2Entity(
-      saldoInicialRequest,
-      cuenta,
-      null,
-      usuarioId,
-    );
-    await this.movimientoRepository.save(newMovimiento);
-    await this.aplicarSaldo(cuentaId, monto, TipoMovimientoEnum.SALDO_INICIAL, true);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const saldoInicialRequest: CreateMovimientoRequestDto = {
+        cuentaId,
+        tipoMovimiento: TipoMovimientoEnum.SALDO_INICIAL,
+        descripcion: 'Saldo inicial',
+        monto,
+        fecha: new Date(),
+      };
+      const newMovimiento = await this.movimientoMapper.createDTO2Entity(
+        saldoInicialRequest,
+        cuenta,
+        null,
+        usuarioId,
+      );
+      await queryRunner.manager.getRepository(Movimiento).save(newMovimiento);
+      await this.saldoService.aplicarMovimiento(
+        cuentaId,
+        TipoMovimientoEnum.SALDO_INICIAL,
+        monto,
+        true,
+        queryRunner.manager,
+      );
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async create(request: CreateMovimientoRequestDto, usuarioId: number): Promise<MovimientoSimpleDTO> {
@@ -115,6 +152,7 @@ export class MovimientoService {
         });
       }
     }
+    this.validarCategoriaParaTipo(request.tipoMovimiento, categoria, request.categoriaId);
 
     const newMovimiento = await this.movimientoMapper.createDTO2Entity(
       request,
@@ -122,9 +160,33 @@ export class MovimientoService {
       categoria,
       usuarioId,
     );
-    const movimientoSaved = await this.movimientoRepository.save(newMovimiento);
-    await this.aplicarSaldo(request.cuentaId, request.monto, request.tipoMovimiento, true);
-    return this.movimientoMapper.entity2SimpleDTO(movimientoSaved);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const movimientoSaved = await queryRunner.manager.getRepository(Movimiento).save(newMovimiento);
+      if (request.tipoMovimiento !== TipoMovimientoEnum.TRANSFERENCIA) {
+        await this.saldoService.aplicarMovimiento(
+          request.cuentaId,
+          request.tipoMovimiento,
+          request.monto,
+          true,
+          queryRunner.manager,
+        );
+      }
+      await queryRunner.commitTransaction();
+      const withRelations = await this.movimientoRepository.findOne({
+        where: { id: movimientoSaved.id },
+        relations: ['cuenta', 'categoria', 'usuario'],
+      });
+      return this.movimientoMapper.entity2SimpleDTO(withRelations ?? movimientoSaved);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async update(
@@ -165,6 +227,12 @@ export class MovimientoService {
       }
       categoria = nuevaCategoria;
     }
+    const tipoNuevo = request.tipoMovimiento !== undefined ? request.tipoMovimiento : movimiento.tipoMovimiento;
+    this.validarCategoriaParaTipo(
+      tipoNuevo,
+      categoria ?? movimiento.categoria ?? null,
+      request.categoriaId ?? movimiento.categoria?.id,
+    );
 
     let cuenta = movimiento.cuenta;
     if (request.cuentaId !== undefined && request.cuentaId !== movimiento.cuenta?.id) {
@@ -186,7 +254,6 @@ export class MovimientoService {
     const cuentaIdAnterior = movimiento.cuenta?.id;
 
     const montoNuevo = request.monto !== undefined ? request.monto : montoAnterior;
-    const tipoNuevo = request.tipoMovimiento !== undefined ? request.tipoMovimiento : tipoAnterior;
     const cuentaIdNuevo = cuenta?.id ?? cuentaIdAnterior;
 
     const updateMovimiento = await this.movimientoMapper.updateDTO2Entity(
@@ -195,13 +262,36 @@ export class MovimientoService {
       categoria,
       cuenta,
     );
-    await this.movimientoRepository.save(updateMovimiento);
 
-    if (cuentaIdAnterior != null) {
-      await this.aplicarSaldo(cuentaIdAnterior, montoAnterior, tipoAnterior, false);
-    }
-    if (cuentaIdNuevo != null) {
-      await this.aplicarSaldo(cuentaIdNuevo, montoNuevo, tipoNuevo, true);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.manager.getRepository(Movimiento).save(updateMovimiento);
+      if (cuentaIdAnterior != null) {
+        await this.saldoService.aplicarMovimiento(
+          cuentaIdAnterior,
+          tipoAnterior,
+          montoAnterior,
+          false,
+          queryRunner.manager,
+        );
+      }
+      if (cuentaIdNuevo != null) {
+        await this.saldoService.aplicarMovimiento(
+          cuentaIdNuevo,
+          tipoNuevo,
+          montoNuevo,
+          true,
+          queryRunner.manager,
+        );
+      }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
 
     const updated = await this.movimientoRepository.findOneById(id);
@@ -227,14 +317,27 @@ export class MovimientoService {
         details: JSON.stringify({ id }),
       });
     }
-    await this.movimientoRepository.softRemove(movimiento);
-    if (movimiento.cuenta?.id != null) {
-      await this.aplicarSaldo(
-        movimiento.cuenta.id,
-        Number(movimiento.monto),
-        movimiento.tipoMovimiento,
-        false,
-      );
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.manager.getRepository(Movimiento).softRemove(movimiento);
+      if (movimiento.cuenta?.id != null && movimiento.tipoMovimiento !== TipoMovimientoEnum.TRANSFERENCIA) {
+        await this.saldoService.aplicarMovimiento(
+          movimiento.cuenta.id,
+          movimiento.tipoMovimiento,
+          Number(movimiento.monto),
+          false,
+          queryRunner.manager,
+        );
+      }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
     return 'Movimiento eliminado correctamente';
   }

@@ -15,6 +15,9 @@ import { CuentaModule } from './schematics/cuenta/cuenta.module';
 import { TransferenciaModule } from './schematics/transferencia/transferencia.module';
 import { GastoFijoModule } from './schematics/gasto-fijo/gasto-fijo.module';
 import { PagoGastoFijoModule } from './schematics/pagos-gasto-fijo/pago-gasto-fijo.module';
+import { PresupuestoModule } from './schematics/presupuesto/presupuesto.module';
+import { DashboardModule } from './schematics/dashboard/dashboard.module';
+import { ReportesModule } from './schematics/reportes/reportes.module';
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { PagoGastoFijoModule } from './schematics/pagos-gasto-fijo/pago-gasto-fi
     TransferenciaModule,
     GastoFijoModule,
     PagoGastoFijoModule,
+    PresupuestoModule,
+    DashboardModule,
+    ReportesModule,
   ],
   controllers: [],
   providers: [],

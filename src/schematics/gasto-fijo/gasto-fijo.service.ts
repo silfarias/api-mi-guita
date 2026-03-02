@@ -4,6 +4,7 @@ import { GetEntityService } from 'src/common/services/get-entity.service';
 import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { MesEnum } from 'src/common/enums/mes-enum';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Categoria } from '../categoria/entities/categoria.entity';
@@ -60,7 +61,23 @@ export class GastoFijoService {
 
   async create(request: CreateGastoFijoRequestDto, usuarioId: number): Promise<GastoFijoDTO> {
     try {
-      await this.getEntityService.findById(Categoria, request.categoriaId);
+      const categoria = await this.getEntityService.findById(Categoria, request.categoriaId);
+      if (categoria.tipo !== TipoCategoriaEnum.EGRESO) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'La categoría del gasto fijo debe ser de tipo EGRESO',
+          details: JSON.stringify({ categoriaId: request.categoriaId }),
+        });
+      }
+      const diaVen = new Date(request.diaVencimiento);
+      const dia = diaVen.getDate();
+      if (dia < 1 || dia > 31) {
+        throw new BadRequestException({
+          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+          message: 'El día de vencimiento debe estar entre 1 y 31',
+          details: JSON.stringify({ diaVencimiento: request.diaVencimiento }),
+        });
+      }
       const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
       const gastoFijoExistente = await this.gastoFijoRepository
@@ -106,6 +123,25 @@ export class GastoFijoService {
         });
         if (!categoriaExiste) {
           this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { categoriaId: request.categoriaId });
+        }
+        if (categoriaExiste.tipo !== TipoCategoriaEnum.EGRESO) {
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'La categoría del gasto fijo debe ser de tipo EGRESO',
+            details: JSON.stringify({ categoriaId: request.categoriaId }),
+          });
+        }
+      }
+
+      if (request.diaVencimiento !== undefined) {
+        const diaVen = new Date(request.diaVencimiento);
+        const dia = diaVen.getDate();
+        if (dia < 1 || dia > 31) {
+          throw new BadRequestException({
+            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            message: 'El día de vencimiento debe estar entre 1 y 31',
+            details: JSON.stringify({ diaVencimiento: request.diaVencimiento }),
+          });
         }
       }
 

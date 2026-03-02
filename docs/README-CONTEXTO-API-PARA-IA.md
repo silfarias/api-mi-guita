@@ -11,7 +11,7 @@ Este documento describe el estado actual de la API **MiGuita** (gestión de fina
 - **Base de datos:** MySQL
 - **Auth:** JWT (access + refresh token), Passport
 - **Documentación:** Swagger
-- **Estructura:** Módulos por dominio bajo `src/schematics/` (auth, usuario, persona, cuenta, movimiento, categoria, transferencia, gasto-fijo, pagos-gasto-fijo). Servicios comunes en `src/common/` (email, guards, DTOs, enums, errores).
+- **Estructura:** Módulos por dominio bajo `src/schematics/` (auth, usuario, persona, cuenta, movimiento, categoria, transferencia, gasto-fijo, pagos-gasto-fijo, **presupuesto**, **dashboard**, **reportes**). Servicios comunes en `src/common/` (email, guards, DTOs, enums, errores).
 
 Todas las rutas excepto `auth/signup`, `auth/login` y `auth/refresh` requieren **JWT** en header: `Authorization: Bearer <access_token>`.
 
@@ -34,7 +34,7 @@ Todas las entidades extienden `BaseEntity`:
 
 - **Campos:** nombreUsuario, contrasena (hash), email, emailVerificado (boolean), codigoVerificacionEmail, codigoVerificacionExpiraEn, activo, ultimoAcceso, fotoPerfil (URL).
 - **Relación 1:1** con **Persona** (FK `rela_user02`).
-- **Relaciones 1:N:** cuentas, movimientos, transferencias, gastosFijos, pagosGastoFijo, resumenesMensuales.
+- **Relaciones 1:N:** cuentas, movimientos, transferencias, gastosFijos, pagosGastoFijo, resumenesMensuales, **presupuestos**.
 
 ### 3.2 Persona (`user_02_cab_persona`)
 
@@ -52,7 +52,10 @@ Se crea una Persona por cada Usuario en el signup (nombre y apellido del registr
 - **Relación N:1** con Usuario (FK `rela01_user`).
 - **Relaciones 1:N:** movimientos; transferenciasOrigen; transferenciasDestino.
 
-**Regla:** El saldo de la cuenta **no** se actualiza al crear/editar la cuenta manualmente; se actualiza solo cuando se crean/editan/eliminan **Movimientos** (INGRESO/EGRESO/SALDO_INICIAL) o **Transferencias**.
+**Reglas de saldo:**
+
+- El saldo **no** se actualiza al editar la cuenta manualmente (PATCH); se actualiza solo cuando se crean/editan/eliminan **Movimientos** o **Transferencias**.
+- **Al crear una cuenta** (POST `/cuenta` o POST `/cuenta/bulk`): el body lleva **`saldoInicial`** (opcional). La cuenta se persiste con **saldoActual = 0**. Si `saldoInicial > 0`, el **CuentaService** llama a **MovimientoService.createSaldoInicial()**, que crea un movimiento con `tipoMovimiento: SALDO_INICIAL`, `descripcion: 'Saldo inicial'`, `monto: saldoInicial`, y aplica ese monto al saldo de la cuenta. Así el saldo inicial queda registrado como movimiento y la cuenta queda con el saldo correcto. Es la única fuente de verdad para el saldo.
 
 ---
 
@@ -69,13 +72,15 @@ Se crea una Persona por cada Usuario en el signup (nombre y apellido del registr
 - Al **actualizar**: se “revierte” el monto anterior en la cuenta anterior y se aplica el nuevo monto en la cuenta nueva (si cambió cuenta/tipo/monto).
 - Al **eliminar** (soft delete): se revierte el monto en la cuenta.
 
+**SALDO_INICIAL:** Los movimientos de saldo inicial se crean **automáticamente** al crear una cuenta con `saldoInicial > 0` (CuentaService → MovimientoService.createSaldoInicial). No llevan categoría (`categoria` = null); también se pueden crear manualmente por POST `/movimiento` con `tipoMovimiento: SALDO_INICIAL` (categoria opcional, normalmente null).
+
 ---
 
 ### 3.5 Categoria (`cat_01_cab_categoria`)
 
 - **Campos:** nombre, descripcion, color, icono, tipo (enum), activo.
 - **TipoCategoriaEnum:** INGRESO | EGRESO (para filtrar categorías de ingresos vs gastos).
-- **Relaciones 1:N:** movimientos, gastosFijos.
+- **Relaciones 1:N:** movimientos, gastosFijos, **presupuestos**.
 
 Las categorías se pueden precargar con el script `scripts/insert-categorias.sql`. Son globales (no por usuario); cualquier usuario puede usarlas en movimientos y gastos fijos.
 
@@ -111,7 +116,15 @@ Cada registro es “una cuota” de un gasto fijo para un mes/año. Se puede mar
 
 ---
 
-### 3.9 ResumenMensual (`res_01_cab_resumen_mensual`)
+### 3.9 Presupuesto (`pres_01_cab_presupuesto`)
+
+- **Campos:** monto (decimal 10,2), mes (MesEnum), anio (int).
+- **Relaciones N:1:** categoria (FK `rela01_cat`), usuario (FK `rela01_user`).
+- **Reglas:** Un presupuesto define cuánto se quiere gastar en una **categoría** en un **mes/año**. Solo se permite para categorías de tipo **EGRESO**. Constraint único: (usuario, categoria, mes, anio). Se usa en el **Dashboard** para mostrar estado (OK / ALERTA / EXCEDIDO) y alertas.
+
+---
+
+### 3.10 ResumenMensual (`res_01_cab_resumen_mensual`)
 
 - **Campos:** mes (MesEnum), anio, saldoInicial, saldoFinal.
 - **Relación N:1:** usuario.
@@ -122,28 +135,22 @@ Cada registro es “una cuota” de un gasto fijo para un mes/año. Se puede mar
 
 ## 4. Flujo de datos resumido
 
-1. **Registro / Login**
-   - Signup crea Persona + Usuario, envía email de verificación (código 6 dígitos, no bloquea el uso).
-   - Login devuelve access_token, refresh_token y usuario. Refresh en `POST /auth/refresh`.
-   - Verificación de email: `POST /auth/verify-email` (código), `POST /auth/send-verification-email` (reenvío). “Olvidé mi contraseña” solo permitido si `emailVerificado === true`.
+### 4.1 Onboarding (registro y cuentas iniciales)
 
-2. **Cuentas**
-   - El usuario crea cuentas (una a una o bulk). Cada cuenta tiene nombre, tipo (EFECTIVO/BANCO/BILLETERA) y saldoActual inicial.
-   - El saldo actual se mantiene dinámicamente con movimientos y transferencias.
+1. **Registro:** Signup crea Persona + Usuario. Se envía email de verificación (código 6 dígitos); el usuario **puede usar la app sin verificar**. Login devuelve access_token, refresh_token y usuario.
+2. **Crear cuentas:** El usuario crea sus cuentas (una a una o bulk) indicando **saldo inicial** por cuenta. Ejemplo body:
+   - `POST /cuenta`: `{ "nombre": "Efectivo", "tipo": "EFECTIVO", "saldoInicial": 15000 }`
+   - `POST /cuenta/bulk`: `{ "cuentas": [ { "nombre": "Efectivo", "tipo": "EFECTIVO", "saldoInicial": 15000 }, { "nombre": "Mercado Pago", "tipo": "BILLETERA", "saldoInicial": 200000 } ] }`
+3. **Efecto:** Por cada cuenta con `saldoInicial > 0` se crea automáticamente un **Movimiento** con `tipoMovimiento: SALDO_INICIAL`, `descripcion: 'Saldo inicial'`, `monto: saldoInicial`, y se actualiza el `saldoActual` de la cuenta. Las cuentas se guardan primero con saldo 0; el movimiento es el que aplica el saldo. Así el historial de movimientos incluye el saldo inicial y el balance es consistente.
 
-3. **Movimientos**
-   - Se crean sobre una cuenta, con tipo (INGRESO, EGRESO, SALDO_INICIAL o TRANSFERENCIA), monto, fecha y opcionalmente categoría.
-   - Cada creación/edición/eliminación actualiza el `saldoActual` de la(s) cuenta(s) afectada(s).
+### 4.2 Uso normal de la app
 
-4. **Transferencias**
-   - Entre dos cuentas del mismo usuario. Resta en origen, suma en destino; mismo día se persiste la transferencia y se actualizan ambos saldos.
-
-5. **Gastos fijos y pagos**
-   - Gastos fijos definen nombre, categoría, monto estimado, día de vencimiento, etc.
-   - Para cada mes/año existe un PagoGastoFijo (generado o creado según la lógica del servicio). Se puede marcar como pagado y asociar un Movimiento.
-
-6. **Categorías**
-   - CRUD de categorías (globales). Tienen tipo INGRESO/EGRESO para alinear con el tipo de movimiento o gasto.
+- **Auth:** Refresh en `POST /auth/refresh`. Verificación de email: `POST /auth/verify-email` (código), `POST /auth/send-verification-email` (reenvío). “Olvidé mi contraseña” solo permitido si `emailVerificado === true`.
+- **Cuentas:** Listado (GET list/search), crear (POST con saldoInicial), editar (PATCH; no se puede cambiar el saldo por aquí), eliminar (DELETE). El saldo actual se mantiene dinámicamente con movimientos y transferencias.
+- **Movimientos:** Se crean sobre una cuenta con tipo (INGRESO, EGRESO, SALDO_INICIAL o TRANSFERENCIA), monto, fecha y opcionalmente categoría. Cada creación/edición/eliminación actualiza el `saldoActual` de la(s) cuenta(s) afectada(s).
+- **Transferencias:** POST con cuentaOrigenId, cuentaDestinoId, monto, fecha. Resta en origen, suma en destino; ambas cuentas del mismo usuario.
+- **Gastos fijos:** Definición de gastos recurrentes (categoría, monto estimado, día vencimiento). Pagos por mes/año en PagoGastoFijo; se puede marcar como pagado y asociar un Movimiento.
+- **Categorías:** CRUD global (tipo INGRESO/EGRESO). Precarga con `scripts/insert-categorias.sql`.
 
 ---
 
@@ -153,12 +160,15 @@ Cada registro es “una cuota” de un gasto fijo para un mes/año. Se puede mar
 |---------------|----------------------|----------------------|
 | Auth          | `/auth`              | POST signup, login, refresh; GET me; POST verify-email, send-verification-email; POST logout; PATCH change-password |
 | Usuario       | `/usuario`           | GET search, :id; POST; PATCH :id; DELETE :id (protegido por usuario) |
-| Cuenta        | `/cuenta`            | GET list, search, :id; POST, POST bulk; PATCH :id; DELETE :id |
+| Cuenta        | `/cuenta`            | GET list, search, :id; POST (body: nombre, tipo, **saldoInicial** opcional), POST **bulk** (body: cuentas[] con nombre, tipo, saldoInicial); PATCH :id; DELETE :id |
 | Movimiento    | `/movimiento`        | GET search, agrupado, :id; POST; PATCH :id; DELETE :id |
 | Categoria     | `/categoria`        | GET search, :id; POST; PATCH :id; DELETE :id |
-| Transferencia | `/transferencias`   | POST (crear transferencia) |
+| Transferencia | `/transferencias`   | POST (crear transferencia: cuentaOrigenId, cuentaDestinoId, monto, fecha) |
 | Gasto fijo    | `/gasto-fijo`       | GET search, :id, etc.; POST (y bulk si existe); PATCH :id; DELETE :id |
 | Pago gasto fijo | `/pago-gasto-fijo` | GET por-mes, search, :id; PATCH :id |
+| **Presupuesto**  | `/presupuesto`     | GET (query: mes, anio), GET :id; POST (categoriaId, mes, anio, monto); PATCH :id; DELETE :id |
+| **Dashboard**    | `/dashboard`       | GET (query: **mes**, **anio**) — un solo endpoint con saldo total, ingresos/egresos del mes, balance, gastos por categoría/cuenta, últimos movimientos, presupuestos con estado y alertas |
+| **Reportes**     | `/reportes`        | GET **categorias** (mes, anio); GET **cuentas** (mes, anio opc.); GET **evolucion** (anio); GET **flujo** (mes, anio opc.) |
 
 Todos los anteriores (salvo auth público) usan `JwtAuthGuard` y reciben `req.user.id` como usuario autenticado.
 
@@ -187,10 +197,12 @@ Todos los anteriores (salvo auth público) usan `JwtAuthGuard` y reciben `req.us
 
 - **ResumenMensual:** Sin módulo ni endpoints; falta definir cómo se calcula/guarda saldoInicial y saldoFinal por usuario/mes/año (y si se genera automático o manual).
 - **Validaciones de negocio:** Por ejemplo, no permitir monto negativo en transferencias; o no permitir eliminar una cuenta con movimientos/transferencias (o definir si se reasignan/eliminan en cascada).
-- **Categoría en movimientos:** La categoría es opcional; se podría exigir para INGRESO/EGRESO y validar que el tipo de categoría coincida con el tipo de movimiento.
+- **Categoría en movimientos:** La categoría es opcional; se podría exigir para INGRESO/EGRESO y validar que el tipo de categoría coincida con el tipo de movimiento. Los movimientos SALDO_INICIAL se guardan con categoria = null.
 - **Pagos de gastos fijos:** Clarificar si los PagoGastoFijo se generan automáticamente por mes/año para cada GastoFijo activo o se crean bajo demanda; y si al vincular un Movimiento se actualiza o no el saldo (hoy el movimiento ya actualiza saldo por su lado).
-- **Reportes/dashboard:** No hay endpoints de reportes (por categoría, por período, comparativa mensual, etc.); ResumenMensual podría alimentar uno de ellos.
+- **Dashboard y reportes:** Implementados: **GET /dashboard?mes=&anio=** (resumen en un endpoint), **Presupuesto** CRUD, **GET /reportes/categorias**, **/reportes/cuentas**, **/reportes/evolucion**, **/reportes/flujo**. Posibles mejoras: alertas más inteligentes, comparación mensual, predicciones, endpoint de IA para análisis.
 - **Filtros por fecha:** En movimientos/cuentas, filtros por rango de fechas y por tipo de movimiento para listados y reportes.
+
+**Scripts SQL útiles:** `scripts/insert-categorias.sql` (precarga categorías con tipo INGRESO/EGRESO). `scripts/truncate-cuentas-y-dependentes.sql` (vacía cuentas, movimientos y transferencias y reinicia auto-increment; útil para rehacer onboarding).
 
 ---
 
@@ -202,5 +214,6 @@ Podés pegar este README (o secciones relevantes) en ChatGPT y pedir, por ejempl
 - “¿Cómo validar que la categoría de un movimiento sea del mismo tipo (INGRESO/EGRESO) que el movimiento?”
 - “Propón un diseño de reportes (endpoints y DTOs) para la API MiGuita.”
 - “Revisá el flujo de saldos entre Cuenta, Movimiento y Transferencia y decime si ves riesgos de consistencia.”
+- “El onboarding crea cuentas con saldoInicial y genera movimientos SALDO_INICIAL; ¿cómo mostraría esto en un dashboard?”
 
 Actualizá este documento cuando agregues entidades, módulos o reglas de negocio importantes para mantener el contexto al día.

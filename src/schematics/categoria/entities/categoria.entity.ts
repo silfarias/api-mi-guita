@@ -1,6 +1,7 @@
 import { BaseEntity } from 'src/common/models/baseentity';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
 import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
+import { Presupuesto } from 'src/schematics/presupuesto/entities/presupuesto.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
 import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
@@ -30,6 +31,9 @@ export class Categoria extends BaseEntity {
 
   @OneToMany(() => GastoFijo, (gastosFijos) => gastosFijos.categoria)
   gastosFijos: GastoFijo[];
+
+  @OneToMany(() => Presupuesto, (presupuesto) => presupuesto.categoria)
+  presupuestos: Presupuesto[];
 
   static fromId(id: number) {
     const categoria = new Categoria();
