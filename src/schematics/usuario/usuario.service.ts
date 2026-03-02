@@ -86,11 +86,13 @@ export class UsuarioService {
     request: CreateUsuarioRequestDto,
     file?: Express.Multer.File,
   ): Promise<UsuarioDTO> {
+    let urlFotoPerfil: string | null = null;
     try {
       await this.validateUniqueEmail(request.email);
       await this.validateUniqueNombreUsuario(request.nombreUsuario);
 
-      const urlFotoPerfil = await this.uploadFotoPerfilIfPresent(file);
+      // Subir foto primero y guardar la URL para poder eliminarla si hay error
+      urlFotoPerfil = await this.uploadFotoPerfilIfPresent(file);
 
       const personaDto = await this.personaService.create({
         nombre: request.nombre,
@@ -111,6 +113,15 @@ export class UsuarioService {
       if (!withRelations) this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { id: usuarioSaved.id });
       return this.usuarioMapper.entity2DTO(withRelations);
     } catch (error) {
+      // Si se subió una foto y ocurrió un error, eliminarla de Cloudinary
+      if (urlFotoPerfil) {
+        try {
+          await this.deleteFotoFromUrl(urlFotoPerfil);
+        } catch (deleteError) {
+          // Log del error pero no fallar por esto
+          console.error('Error al eliminar foto de Cloudinary después de fallo:', deleteError);
+        }
+      }
       if (error instanceof HttpException) throw error;
       this.errorHandler.handleError(error);
     }
@@ -122,6 +133,9 @@ export class UsuarioService {
     usuarioId: number,
     file?: Express.Multer.File,
   ): Promise<UsuarioDTO> {
+    let nuevaUrlFotoPerfil: string | null = null;
+    let seSubioNuevaFoto = false;
+    
     try {
       const usuario = await this.getEntityService.findById(Usuario, id, ['persona']);
 
@@ -133,7 +147,10 @@ export class UsuarioService {
         await this.validateUniqueEmail(request.email);
       }
 
-      const nuevaUrlFotoPerfil = await this.resolveFotoPerfilOnUpdate(
+      // Guardar si se va a subir una nueva foto
+      seSubioNuevaFoto = !!file;
+      
+      nuevaUrlFotoPerfil = await this.resolveFotoPerfilOnUpdate(
         usuario,
         request.urlFotoPerfil,
         file,
@@ -159,6 +176,16 @@ export class UsuarioService {
       if (!withRelations) this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { id });
       return this.usuarioMapper.entity2DTO(withRelations);
     } catch (error) {
+      // Si se subió una nueva foto y ocurrió un error, eliminarla de Cloudinary
+      // para evitar que quede huérfana en la nube
+      if (seSubioNuevaFoto && nuevaUrlFotoPerfil) {
+        try {
+          await this.deleteFotoFromUrl(nuevaUrlFotoPerfil);
+        } catch (deleteError) {
+          // Log del error pero no fallar por esto
+          console.error('Error al eliminar foto de Cloudinary después de fallo:', deleteError);
+        }
+      }
       this.errorHandler.handleError(error);
     }
   }
@@ -223,7 +250,7 @@ export class UsuarioService {
   ): Promise<string | null> {
     if (!file) return null;
     const safeName = file.originalname?.replace(/[^a-zA-Z0-9.-]/g, '_') ?? 'foto-perfil';
-    const key = `fotos-perfiles/${safeName}_${Date.now()}`;
+    const key = `mi-guita/fotos-perfiles/${safeName}_${Date.now()}`;
     return this.cloudinaryService.uploadImageFromBuffer(file.buffer, key);
   }
 

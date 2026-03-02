@@ -48,6 +48,7 @@ export class UsuarioMapper {
     usuario.nombreUsuario = request.nombreUsuario;
     usuario.email = request.email;
     usuario.contrasena = await bcrypt.hash(request.contrasena, 10);
+    usuario.ultimoAcceso = new Date(); // Asignar fecha actual al crear usuario
     return usuario;
   }
 
@@ -59,6 +60,7 @@ export class UsuarioMapper {
     usuario.email = request.email;
     usuario.contrasena = await bcrypt.hash(request.contrasena, 10);
     usuario.persona = Persona.fromId(request.personaId);
+    usuario.ultimoAcceso = new Date(); // Asignar fecha actual al crear usuario
     return usuario;
   }
 
