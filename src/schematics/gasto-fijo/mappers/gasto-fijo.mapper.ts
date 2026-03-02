@@ -10,15 +10,12 @@ import { CategoriaMapper } from 'src/schematics/categoria/mappers/categoria.mapp
 import { Categoria } from 'src/schematics/categoria/entities/categoria.entity';
 import { UsuarioMapper } from 'src/schematics/usuario/mappers/usuario.mapper';
 import { PageMetadataDto } from 'src/common/dto/page-metadata.dto';
-import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
-import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
 
 @Injectable()
 export class GastoFijoMapper {
   constructor(
     private usuarioMapper: UsuarioMapper,
     private categoriaMapper: CategoriaMapper,
-    private medioPagoMapper: MedioPagoMapper,
   ) {}
 
   async entity2DTO(gastoFijo: GastoFijo): Promise<GastoFijoDTO> {
@@ -26,12 +23,9 @@ export class GastoFijoMapper {
       excludeExtraneousValues: true,
       enableImplicitConversion: true,
     });
-    dto.montoFijo = Number(gastoFijo.montoFijo ?? 0);
+    dto.montoEstimado = Number(gastoFijo.montoEstimado ?? 0);
     if (gastoFijo.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(gastoFijo.categoria);
-    }
-    if (gastoFijo.medioPago) {
-      dto.medioPago = await this.medioPagoMapper.entity2DTO(gastoFijo.medioPago);
     }
     return dto;
   }
@@ -41,9 +35,7 @@ export class GastoFijoMapper {
     page: PageDto<GastoFijo>,
   ): Promise<PageDto<GastoFijoDTO>> {
     const dtos = await Promise.all(
-      page.data.map(async (gastoFijo) => {
-        return this.entity2DTO(gastoFijo);
-      }),
+      page.data.map((gastoFijo) => this.entity2DTO(gastoFijo)),
     );
     const pageDto = new PageDto<GastoFijoDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
@@ -64,9 +56,6 @@ export class GastoFijoMapper {
     return pageDto;
   }
 
-  /**
-   * Construye la respuesta de mis-gastos-fijos: solo usuario (cabecera), gastosFijos (GastoFijoDTO sin usuario ni pagos) y metadata.
-   */
   async page2MisGastosFijosResponseDto(
     request: SearchGastoFijoRequestDto,
     page: PageDto<GastoFijo>,
@@ -87,28 +76,30 @@ export class GastoFijoMapper {
     return response;
   }
 
-  createDTO2Entity(
-    request: CreateGastoFijoRequestDto,
-  ): GastoFijo {
-    const newGastoFijo: GastoFijo = new GastoFijo();
+  createDTO2Entity(request: CreateGastoFijoRequestDto): Promise<GastoFijo> {
+    const newGastoFijo = new GastoFijo();
     newGastoFijo.nombre = request.nombre;
-    newGastoFijo.montoFijo = request.montoFijo != null ? request.montoFijo : null;
-    newGastoFijo.activo = true; // por defecto activo al crear
+    newGastoFijo.tipo = request.tipo;
+    newGastoFijo.montoEstimado = request.montoEstimado ?? 0;
+    newGastoFijo.diaVencimiento = request.diaVencimiento ? new Date(request.diaVencimiento) : new Date();
+    newGastoFijo.activo = true;
     newGastoFijo.categoria = Categoria.fromId(request.categoriaId);
     newGastoFijo.esDebitoAutomatico = request.esDebitoAutomatico;
-    newGastoFijo.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
-    return newGastoFijo;
+    return Promise.resolve(newGastoFijo);
   }
 
-  updateDTO2Entity(
-    gastoFijo: GastoFijo,
-    request: UpdateGastoFijoRequestDto,
-  ): GastoFijo {
+  async updateDTO2Entity(gastoFijo: GastoFijo, request: UpdateGastoFijoRequestDto): Promise<GastoFijo> {
     if (request.nombre !== undefined) {
       gastoFijo.nombre = request.nombre;
     }
-    if (request.montoFijo !== undefined) {
-      gastoFijo.montoFijo = request.montoFijo;
+    if (request.tipo !== undefined) {
+      gastoFijo.tipo = request.tipo;
+    }
+    if (request.montoEstimado !== undefined) {
+      gastoFijo.montoEstimado = request.montoEstimado;
+    }
+    if (request.diaVencimiento !== undefined) {
+      gastoFijo.diaVencimiento = new Date(request.diaVencimiento);
     }
     if (request.activo !== undefined) {
       gastoFijo.activo = request.activo;
@@ -118,9 +109,6 @@ export class GastoFijoMapper {
     }
     if (request.categoriaId !== undefined) {
       gastoFijo.categoria = Categoria.fromId(request.categoriaId);
-    }
-    if (request.medioPagoId !== undefined) {
-      gastoFijo.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
     }
     return gastoFijo;
   }

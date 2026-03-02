@@ -8,8 +8,6 @@ import { MesEnum } from 'src/common/enums/mes-enum';
 import { Usuario } from '../usuario/entities/usuario.entity';
 import { Categoria } from '../categoria/entities/categoria.entity';
 import { CategoriaRepository } from '../categoria/repository/categoria.repository';
-import { InfoInicialRepository } from '../info-inicial/repository/info-inicial.repository';
-import { MedioPagoRepository } from '../medio-pago/repository/medio-pago.repository';
 
 import { GastoFijo } from './entities/gasto-fijo.entity';
 import { PagoGastoFijo } from '../pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
@@ -22,7 +20,7 @@ import { UpdateGastoFijoRequestDto } from './dto/update-gasto-fijo-request.dto';
 import { SearchGastoFijoRequestDto } from './dto/search-gasto-fijo-request.dto';
 import { CreateGastoFijoBulkRequestDto } from './dto/create-gasto-fijo-bulk-request.dto';
 
-const RELATIONS = ['categoria', 'usuario', 'medioPago'] as const;
+const RELATIONS = ['categoria', 'usuario'] as const;
 
 @Injectable()
 export class GastoFijoService {
@@ -32,12 +30,8 @@ export class GastoFijoService {
     private readonly categoriaRepository: CategoriaRepository,
     private readonly getEntityService: GetEntityService,
     private readonly errorHandler: ErrorHandlerService,
-    @Inject(forwardRef(() => InfoInicialRepository))
-    private readonly infoInicialRepository: InfoInicialRepository,
     @Inject(forwardRef(() => PagoGastoFijoRepository))
     private readonly pagoGastoFijoRepository: PagoGastoFijoRepository,
-    @Inject(forwardRef(() => MedioPagoRepository))
-    private readonly medioPagoRepository: MedioPagoRepository,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<GastoFijoDTO> {
@@ -52,11 +46,7 @@ export class GastoFijoService {
   }
 
   async getGastosFijosActivos(usuarioId: number): Promise<GastoFijoDTO[]> {
-    const gastosFijos = await this.gastoFijoRepository.find({
-      where: {
-        usuario: { id: usuarioId }
-      },
-    });
+    const gastosFijos = await this.gastoFijoRepository.getGastosFijosActivos(usuarioId);
     return Promise.all(
       gastosFijos.map((gastoFijo) => this.gastoFijoMapper.entity2DTO(gastoFijo)),
     );
@@ -73,7 +63,6 @@ export class GastoFijoService {
       await this.getEntityService.findById(Categoria, request.categoriaId);
       const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
-      // Validar que no exista otro gasto fijo con el mismo nombre para este usuario
       const gastoFijoExistente = await this.gastoFijoRepository
         .createQueryBuilder('gastoFijo')
         .where('gastoFijo.usuario = :usuarioId', { usuarioId })
@@ -88,43 +77,11 @@ export class GastoFijoService {
         });
       }
 
-      // Validar lógica de débito automático
-      if (request.esDebitoAutomatico) {
-        // Si es débito automático, debe proporcionar medioPagoId
-        if (!request.medioPagoId) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'Si el gasto fijo es débito automático, debe proporcionar el ID del medio de pago',
-            details: JSON.stringify({ esDebitoAutomatico: request.esDebitoAutomatico }),
-          });
-        }
-
-        // Validar que el medio de pago existe
-        const medioPago = await this.medioPagoRepository.findOne({
-          where: { id: request.medioPagoId },
-        });
-
-        if (!medioPago) {
-          this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { medioPagoId: request.medioPagoId });
-        }
-      } else {
-        // Si no es débito automático, no debe tener medioPagoId
-        if (request.medioPagoId) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'Si el gasto fijo no es débito automático, no debe proporcionar medio de pago',
-            details: JSON.stringify({ esDebitoAutomatico: request.esDebitoAutomatico, medioPagoId: request.medioPagoId }),
-          });
-        }
-      }
-
-      // Crear el gasto fijo
-      const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(request);
+      const newGastoFijo = await this.gastoFijoMapper.createDTO2Entity(request);
       newGastoFijo.usuario = usuario;
       const gastoFijoSaved = await this.gastoFijoRepository.save(newGastoFijo);
 
-      // Crear automáticamente el GastoFijoPago para el mes actual si existe InfoInicial
-      await this.crearGastoFijoPagoParaMesActual(gastoFijoSaved.id, usuarioId);
+      await this.crearPagoGastoFijoParaMesActual(gastoFijoSaved.id, usuarioId);
 
       const withRelations = await this.getEntityService.findById(GastoFijo, gastoFijoSaved.id, [...RELATIONS]);
       return this.gastoFijoMapper.entity2DTO(withRelations);
@@ -143,18 +100,15 @@ export class GastoFijoService {
       const gastoFijo = await this.getEntityService.findById(GastoFijo, id, [...RELATIONS]);
       this.checkBelongsToUser(gastoFijo, usuarioId, 'modificar');
 
-      // Validar categoría si se está actualizando
       if (request.categoriaId !== undefined && request.categoriaId !== gastoFijo.categoria?.id) {
         const categoriaExiste = await this.categoriaRepository.findOne({
           where: { id: request.categoriaId },
         });
-
         if (!categoriaExiste) {
           this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { categoriaId: request.categoriaId });
         }
       }
 
-      // Validar que si se cambia el nombre, no exista otro gasto fijo con ese nombre para este usuario
       if (request.nombre !== undefined && request.nombre.toLowerCase() !== gastoFijo.nombre.toLowerCase()) {
         const gastoFijoExistente = await this.gastoFijoRepository
           .createQueryBuilder('gastoFijo')
@@ -172,44 +126,7 @@ export class GastoFijoService {
         }
       }
 
-      // Validar lógica de débito automático
-      const esDebitoAutomatico = request.esDebitoAutomatico !== undefined ? request.esDebitoAutomatico : gastoFijo.esDebitoAutomatico;
-
-      if (request.esDebitoAutomatico !== undefined || request.medioPagoId !== undefined) {
-        if (esDebitoAutomatico) {
-          // Si es débito automático, debe proporcionar medioPagoId
-          const medioPagoId = request.medioPagoId !== undefined ? request.medioPagoId : gastoFijo.medioPago?.id;
-          
-          if (!medioPagoId) {
-            throw new BadRequestException({
-              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-              message: 'Si el gasto fijo es débito automático, debe proporcionar el ID del medio de pago',
-              details: JSON.stringify({ esDebitoAutomatico: esDebitoAutomatico }),
-            });
-          }
-
-          // Validar que el medio de pago existe
-          const medioPagoExiste = await this.medioPagoRepository.findOne({
-            where: { id: medioPagoId },
-          });
-
-          if (!medioPagoExiste) {
-            this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { medioPagoId });
-          }
-        } else {
-          // Si no es débito automático, no debe tener medioPagoId
-          if (request.medioPagoId !== undefined && request.medioPagoId !== null) {
-            throw new BadRequestException({
-              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-              message: 'Si el gasto fijo no es débito automático, no debe proporcionar medio de pago',
-              details: JSON.stringify({ esDebitoAutomatico: esDebitoAutomatico, medioPagoId: request.medioPagoId }),
-            });
-          }
-        }
-      }
-
-      // Actualizar el gasto fijo
-      const updateGastoFijo = this.gastoFijoMapper.updateDTO2Entity(gastoFijo, request);
+      const updateGastoFijo = await this.gastoFijoMapper.updateDTO2Entity(gastoFijo, request);
       await this.gastoFijoRepository.save(updateGastoFijo);
 
       const withRelations = await this.getEntityService.findById(GastoFijo, id, [...RELATIONS]);
@@ -236,17 +153,14 @@ export class GastoFijoService {
     try {
       const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
-      // Obtener todos los IDs de categorías únicos
-      const categoriaIds = [...new Set(request.gastosFijos.map(gf => gf.categoriaId))];
-      
-      // Validar que todas las categorías existen
+      const categoriaIds = [...new Set(request.gastosFijos.map((gf) => gf.categoriaId))];
       const categorias = await this.categoriaRepository.find({
-        where: categoriaIds.map(id => ({ id })),
+        where: categoriaIds.map((id) => ({ id })),
       });
 
       if (categorias.length !== categoriaIds.length) {
-        const categoriasEncontradas = new Set(categorias.map(c => c.id));
-        const categoriasNoEncontradas = categoriaIds.filter(id => !categoriasEncontradas.has(id));
+        const categoriasEncontradas = new Set(categorias.map((c) => c.id));
+        const categoriasNoEncontradas = categoriaIds.filter((id) => !categoriasEncontradas.has(id));
         throw new NotFoundException({
           code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
           message: 'Una o más categorías no fueron encontradas',
@@ -254,11 +168,12 @@ export class GastoFijoService {
         });
       }
 
-      // Validar que no haya nombres duplicados en el array de la request
-      const nombresEnRequest = request.gastosFijos.map(gf => gf.nombre.toLowerCase());
+      const nombresEnRequest = request.gastosFijos.map((gf) => gf.nombre.toLowerCase());
       const nombresUnicos = new Set(nombresEnRequest);
       if (nombresEnRequest.length !== nombresUnicos.size) {
-        const nombresDuplicados = nombresEnRequest.filter((nombre, index) => nombresEnRequest.indexOf(nombre) !== index);
+        const nombresDuplicados = nombresEnRequest.filter(
+          (nombre, index) => nombresEnRequest.indexOf(nombre) !== index,
+        );
         throw new BadRequestException({
           code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
           message: 'No se pueden crear gastos fijos con nombres duplicados en la misma solicitud',
@@ -266,8 +181,7 @@ export class GastoFijoService {
         });
       }
 
-      // Validar que no existan gastos fijos con esos nombres para este usuario
-      const nombresParaValidar = request.gastosFijos.map(gf => gf.nombre.toLowerCase());
+      const nombresParaValidar = request.gastosFijos.map((gf) => gf.nombre.toLowerCase());
       const gastosFijosExistentes = await this.gastoFijoRepository
         .createQueryBuilder('gastoFijo')
         .where('gastoFijo.usuario = :usuarioId', { usuarioId })
@@ -275,7 +189,7 @@ export class GastoFijoService {
         .getMany();
 
       if (gastosFijosExistentes.length > 0) {
-        const nombresExistentes = gastosFijosExistentes.map(gf => gf.nombre);
+        const nombresExistentes = gastosFijosExistentes.map((gf) => gf.nombre);
         throw new BadRequestException({
           code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
           message: 'Uno o más gastos fijos ya existen con esos nombres para este usuario',
@@ -283,75 +197,29 @@ export class GastoFijoService {
         });
       }
 
-      // Validar medios de pago para débitos automáticos
-      const medioPagoIds = [...new Set(request.gastosFijos.filter(gf => gf.medioPagoId).map(gf => gf.medioPagoId!))];
-      
-      if (medioPagoIds.length > 0) {
-        const mediosPago = await this.medioPagoRepository.find({
-          where: medioPagoIds.map(id => ({ id })),
-        });
-
-        if (mediosPago.length !== medioPagoIds.length) {
-          const mediosPagoEncontrados = new Set(mediosPago.map(mp => mp.id));
-          const mediosPagoNoEncontrados = medioPagoIds.filter(id => !mediosPagoEncontrados.has(id));
-          throw new NotFoundException({
-            code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-            message: 'Uno o más medios de pago no fueron encontrados',
-            details: JSON.stringify({ medioPagoIds: mediosPagoNoEncontrados }),
-          });
-        }
-      }
-
-      // Validar lógica de débito automático para cada gasto fijo
-      for (const gastoFijoDto of request.gastosFijos) {
-        if (gastoFijoDto.esDebitoAutomatico) {
-          if (!gastoFijoDto.medioPagoId) {
-            throw new BadRequestException({
-              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-              message: `El gasto fijo "${gastoFijoDto.nombre}" es débito automático pero no tiene medio de pago asignado`,
-              details: JSON.stringify({ nombre: gastoFijoDto.nombre }),
-            });
-          }
-        } else {
-          if (gastoFijoDto.medioPagoId) {
-            throw new BadRequestException({
-              code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-              message: `El gasto fijo "${gastoFijoDto.nombre}" no es débito automático pero tiene medio de pago asignado`,
-              details: JSON.stringify({ nombre: gastoFijoDto.nombre }),
-            });
-          }
-        }
-      }
-
-      // Crear los gastos fijos
-      const nuevosGastosFijos = request.gastosFijos.map(gastoFijoDto => {
-        const newGastoFijo = this.gastoFijoMapper.createDTO2Entity(gastoFijoDto);
-        newGastoFijo.usuario = usuario;
-        return newGastoFijo;
-      });
-
-      // Guardar todos los gastos fijos
-      const gastosFijosGuardados = await this.gastoFijoRepository.save(nuevosGastosFijos);
-
-      // Crear automáticamente los GastoFijoPago para el mes actual si existe InfoInicial
-      for (const gastoFijoGuardado of gastosFijosGuardados) {
-        await this.crearGastoFijoPagoParaMesActual(gastoFijoGuardado.id, usuarioId);
-      }
-
-      // Obtener los IDs de los gastos fijos guardados
-      const ids = gastosFijosGuardados.map(gf => gf.id);
-
-      // Buscar los gastos fijos guardados con relaciones
-      const gastosFijosCompletos = await this.gastoFijoRepository.find({
-        where: ids.map(id => ({ id })),
-        relations: ['categoria', 'usuario', 'medioPago'],
-      });
-
-      // Convertir a DTOs
-      const dtos = await Promise.all(
-        gastosFijosCompletos.map(gf => this.gastoFijoMapper.entity2DTO(gf))
+      const nuevosGastosFijos = await Promise.all(
+        request.gastosFijos.map(async (gastoFijoDto) => {
+          const newGastoFijo = await this.gastoFijoMapper.createDTO2Entity(gastoFijoDto);
+          newGastoFijo.usuario = usuario;
+          return newGastoFijo;
+        }),
       );
 
+      const gastosFijosGuardados = await this.gastoFijoRepository.save(nuevosGastosFijos);
+
+      for (const gastoFijoGuardado of gastosFijosGuardados) {
+        await this.crearPagoGastoFijoParaMesActual(gastoFijoGuardado.id, usuarioId);
+      }
+
+      const ids = gastosFijosGuardados.map((gf) => gf.id);
+      const gastosFijosCompletos = await this.gastoFijoRepository.find({
+        where: ids.map((id) => ({ id })),
+        relations: ['categoria', 'usuario'],
+      });
+
+      const dtos = await Promise.all(
+        gastosFijosCompletos.map((gf) => this.gastoFijoMapper.entity2DTO(gf)),
+      );
       return dtos;
     } catch (error) {
       if (error instanceof HttpException) throw error;
@@ -379,63 +247,47 @@ export class GastoFijoService {
   }
 
   /**
-   * Crea automáticamente un GastoFijoPago para el mes actual si existe InfoInicial
+   * Crea un PagoGastoFijo para el mes actual si no existe (sin depender de info inicial).
    */
-  private async crearGastoFijoPagoParaMesActual(gastoFijoId: number, usuarioId: number): Promise<void> {
+  private async crearPagoGastoFijoParaMesActual(gastoFijoId: number, usuarioId: number): Promise<void> {
     try {
       const fechaActual = new Date();
       const anioActual = fechaActual.getFullYear();
       const mesActual = this.obtenerMesActual();
 
-      // Buscar la InfoInicial del mes actual para el usuario
-      const infoInicialActual = await this.infoInicialRepository.findByUsuarioAndMes(
-        usuarioId,
+      const existente = await this.pagoGastoFijoRepository.findByGastoFijoAndMesAnio(
+        gastoFijoId,
         anioActual,
-        mesActual as string,
+        mesActual,
       );
+      if (existente) return;
 
-      // Si no existe InfoInicial para el mes actual, no crear el pago (no es un error)
-      if (!infoInicialActual) {
-        return;
-      }
-
-      // Verificar si ya existe un pago para este gasto fijo y esta InfoInicial
-      const pagoExistente = await this.pagoGastoFijoRepository
-        .createQueryBuilder('pagoGastoFijo')
-        .where('pagoGastoFijo.gastoFijo = :gastoFijoId', { gastoFijoId })
-        .andWhere('pagoGastoFijo.infoInicial = :infoInicialId', { infoInicialId: infoInicialActual.id })
-        .getOne();
-
-      if (pagoExistente) {
-        // Ya existe un pago para este mes, no crear otro
-        return;
-      }
-
-      // Obtener el gasto fijo con su montoFijo
       const gastoFijo = await this.gastoFijoRepository.findOne({
         where: { id: gastoFijoId },
+        relations: ['usuario'],
       });
+      if (!gastoFijo) return;
 
-      if (!gastoFijo) {
-        return;
-      }
-
-      // Crear el GastoFijoPago
       const nuevoPago = new PagoGastoFijo();
       nuevoPago.gastoFijo = gastoFijo;
-      nuevoPago.infoInicial = infoInicialActual;
-      nuevoPago.montoPago = gastoFijo.montoFijo || 0;
+      nuevoPago.mes = mesActual;
+      nuevoPago.anio = anioActual;
+      nuevoPago.monto = Number(gastoFijo.montoEstimado ?? 0);
       nuevoPago.pagado = false;
+      nuevoPago.usuario = gastoFijo.usuario;
 
       await this.pagoGastoFijoRepository.save(nuevoPago);
     } catch (error) {
-      console.error('Error al crear pago automático de gasto fijo para el mes actual:', error);
+      console.error('Error al crear pago de gasto fijo para el mes actual:', error);
     }
   }
 
   private checkBelongsToUser(gastoFijo: GastoFijo, usuarioId: number, accion: string): void {
     if (gastoFijo.usuario?.id !== usuarioId) {
-      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, `No tienes permiso para ${accion} este gasto fijo`);
+      this.errorHandler.throwBadRequest(
+        ERRORS.VALIDATION.INVALID_INPUT,
+        `No tienes permiso para ${accion} este gasto fijo`,
+      );
     }
   }
 }

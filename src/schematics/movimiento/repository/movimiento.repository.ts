@@ -12,39 +12,32 @@ export class MovimientoRepository extends Repository<Movimiento> {
   }
 
   async search(request: SearchMovimientoRequestDto, usuarioId?: number): Promise<PageDto<Movimiento>> {
-    const queryBuilder: SelectQueryBuilder<Movimiento> = this.createQueryBuilder(
-      'movimiento',
-    )
-      .leftJoinAndSelect('movimiento.infoInicial', 'infoInicial')
-      .leftJoinAndSelect('infoInicial.usuario', 'usuario')
-      .leftJoinAndSelect('infoInicial.infoInicialMedioPagos', 'infoInicialMedioPagos')
-      .leftJoinAndSelect('infoInicialMedioPagos.medioPago', 'medioPagoInfo')
+    const queryBuilder: SelectQueryBuilder<Movimiento> = this.createQueryBuilder('movimiento')
+      .leftJoinAndSelect('movimiento.cuenta', 'cuenta')
+      .leftJoinAndSelect('cuenta.usuario', 'cuentaUsuario')
       .leftJoinAndSelect('movimiento.categoria', 'categoria')
-      .leftJoinAndSelect('movimiento.medioPago', 'medioPago');
+      .leftJoinAndSelect('movimiento.usuario', 'usuario');
 
-    // Filtrar por usuario si se proporciona
-    if (usuarioId) {
+    if (usuarioId != null) {
       queryBuilder.andWhere('usuario.id = :usuarioId', { usuarioId });
     }
 
-    if (request.id) {
+    if (request.id != null) {
       queryBuilder.andWhere('movimiento.id = :id', { id: request.id });
     }
 
-    if (request.infoInicialId) {
-      queryBuilder.andWhere('infoInicial.id = :infoInicialId', { infoInicialId: request.infoInicialId });
+    if (request.cuentaId != null) {
+      queryBuilder.andWhere('cuenta.id = :cuentaId', { cuentaId: request.cuentaId });
     }
 
-    if (request.tipoMovimiento) {
-      queryBuilder.andWhere('movimiento.tipoMovimiento = :tipoMovimiento', { tipoMovimiento: request.tipoMovimiento });
+    if (request.tipoMovimiento != null) {
+      queryBuilder.andWhere('movimiento.tipoMovimiento = :tipoMovimiento', {
+        tipoMovimiento: request.tipoMovimiento,
+      });
     }
 
-    if (request.categoriaId) {
+    if (request.categoriaId != null) {
       queryBuilder.andWhere('categoria.id = :categoriaId', { categoriaId: request.categoriaId });
-    }
-
-    if (request.medioPagoId) {
-      queryBuilder.andWhere('medioPago.id = :medioPagoId', { medioPagoId: request.medioPagoId });
     }
 
     if (request.fechaDesde) {
@@ -68,15 +61,8 @@ export class MovimientoRepository extends Repository<Movimiento> {
 
   async findOneById(id: number): Promise<Movimiento> {
     const movimiento = await this.findOne({
-      where: { id: id },
-      relations: [
-        'infoInicial', 
-        'infoInicial.usuario', 
-        'infoInicial.infoInicialMedioPagos',
-        'infoInicial.infoInicialMedioPagos.medioPago',
-        'categoria', 
-        'medioPago'
-      ],
+      where: { id },
+      relations: ['cuenta', 'cuenta.usuario', 'categoria', 'usuario'],
     });
     if (!movimiento) {
       throw new NotFoundException({

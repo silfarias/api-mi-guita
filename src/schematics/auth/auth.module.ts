@@ -12,8 +12,10 @@ import { UsuarioModule } from '../usuario/usuario.module';
         forwardRef(() => UsuarioModule),
         PassportModule,
         JwtModule.register({
-            secret: process.env.ACCESS_TOKEN_SECRET || 'tu_clave_secreta_super_segura',
-            signOptions: { expiresIn: '1d' },
+            secret: process.env.ACCESS_TOKEN_SECRET || process.env.JWT_SECRET || 'tu_clave_secreta_super_segura',
+            signOptions: {
+                expiresIn: (process.env.ACCESS_TOKEN_EXPIRES_IN || '1d') as any,
+            },
         }),
     ],
     controllers: [AuthController],

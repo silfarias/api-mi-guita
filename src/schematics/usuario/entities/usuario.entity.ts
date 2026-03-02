@@ -1,9 +1,12 @@
 import { Column, Entity, JoinColumn, OneToOne, OneToMany } from 'typeorm';
 import { BaseEntity } from 'src/common/models/baseentity';
 import { Persona } from 'src/schematics/persona/entities/persona.entity';
-import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
-import { ResumenPagoGastoFijo } from 'src/schematics/resumen-gasto-fijo/entities/resumen-pago-gasto-fijo.entity';
+import { Cuenta } from 'src/schematics/cuenta/entities/cuenta.entity';
+import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
+import { Transferencia } from 'src/schematics/transferencia/entities/transferencia.entity';
+import { PagoGastoFijo } from 'src/schematics/pagos-gasto-fijo/entities/pago-gasto-fijo.entity';
+import { ResumenMensual } from 'src/schematics/resumen-mensual/entities/resumen-mensual.entity';
 
 @Entity('user_01_cab_usuario')
 export class Usuario extends BaseEntity {
@@ -16,6 +19,15 @@ export class Usuario extends BaseEntity {
 
   @Column({ name: 'user01_email', type: 'varchar', length: 255 })
   email: string;
+
+  @Column({ name: 'user01_email_verificado', type: 'boolean', default: false })
+  emailVerificado: boolean;
+
+  @Column({ name: 'user01_codigo_verificacion', type: 'varchar', length: 10, nullable: true })
+  codigoVerificacionEmail: string | null;
+
+  @Column({ name: 'user01_codigo_verificacion_expira', type: 'datetime', nullable: true })
+  codigoVerificacionExpiraEn: Date | null;
 
   @Column({ name: 'user01_activo', type: 'boolean', default: true })
   activo: boolean;
@@ -30,14 +42,23 @@ export class Usuario extends BaseEntity {
   @JoinColumn({ name: 'rela_user02' })
   persona: Persona;
 
-  @OneToMany(() => InfoInicial, (infoInicial) => infoInicial.usuario)
-  infoIniciales: InfoInicial[];
-
   @OneToMany(() => GastoFijo, (gastosFijos) => gastosFijos.usuario)
   gastosFijos: GastoFijo[];
 
-  @OneToMany(() => ResumenPagoGastoFijo, (resumen) => resumen.usuario)
-  resumenesPagoGastoFijo: ResumenPagoGastoFijo[];
+  @OneToMany(() => Cuenta, (cuenta) => cuenta.usuario)
+  cuentas: Cuenta[];
+
+  @OneToMany(() => Movimiento, (movimiento) => movimiento.usuario)
+  movimientos: Movimiento[];
+
+  @OneToMany(() => Transferencia, (transferencia) => transferencia.usuario)
+  transferencias: Transferencia[];
+
+  @OneToMany(() => PagoGastoFijo, (pagoGastoFijo) => pagoGastoFijo.usuario)
+  pagosGastoFijo: PagoGastoFijo[];
+
+  @OneToMany(() => ResumenMensual, (resumenMensual) => resumenMensual.usuario)
+  resumenesMensuales: ResumenMensual[];
 
   static fromId(id: number) {
     const usuario = new Usuario();

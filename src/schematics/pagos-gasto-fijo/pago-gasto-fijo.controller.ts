@@ -21,50 +21,39 @@ import {
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
-
 import { plainToInstance } from 'class-transformer';
-
 import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
 import { PageDto } from 'src/common/dto/page.dto';
-
 import { PagoGastoFijoService } from './pago-gasto-fijo.service';
 import { PagoGastoFijoDTO, PagosGastoFijoDTO } from './dto/pago-gasto-fijo.dto';
 import { UpdatePagoGastoFijoRequestDto } from './dto/update-pago-gasto-fijo-request.dto';
 import { SearchPagoGastoFijoRequestDto } from './dto/search-pago-gasto-fijo-request.dto';
-import { PorInfoInicialRequestDto } from './dto/por-info-inicial-request.dto';
+import { PorMesRequestDto } from './dto/por-mes-request.dto';
 
 @ApiTags('Pago Gasto Fijo')
 @Controller('pago-gasto-fijo')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('authorization')
 export class PagoGastoFijoController {
-  constructor(
-    private readonly pagoGastoFijoService: PagoGastoFijoService,
-  ) {}
+  constructor(private readonly pagoGastoFijoService: PagoGastoFijoService) {}
 
-  @Get('por-info-inicial')
-  @ApiOperation({ summary: 'Obtener gastos fijos y pagos por información inicial (mes/año)' })
-  @ApiQuery({
-    name: 'infoInicialId',
-    type: Number,
-    required: true,
-    description: 'ID de la información inicial (mes/año)',
-  })
+  @Get('por-mes')
+  @ApiOperation({ summary: 'Obtener gastos fijos y pagos por mes/año' })
+  @ApiQuery({ name: 'anio', type: Number, required: true, description: 'Año' })
+  @ApiQuery({ name: 'mes', enum: ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'], required: true, description: 'Mes' })
   @ApiOkResponse({
     type: PagosGastoFijoDTO,
-    description: 'Información inicial con gastos fijos y sus pagos del mes',
+    description: 'Gastos fijos y sus pagos del mes',
   })
-  @ApiBadRequestResponse({ description: 'infoInicialId es requerido' })
+  @ApiBadRequestResponse({ description: 'anio y mes son requeridos' })
   @ApiUnauthorizedResponse({ description: 'No autorizado' })
-  async getPagosPorInfoInicial(
-    @Query() query: PorInfoInicialRequestDto,
-    @Request() req: any,
-  ): Promise<PagosGastoFijoDTO> {
-    const reqDto = plainToInstance(PorInfoInicialRequestDto, query, {
+  async getPagosPorMes(@Query() query: PorMesRequestDto, @Request() req: any): Promise<PagosGastoFijoDTO> {
+    const reqDto = plainToInstance(PorMesRequestDto, query, {
       enableImplicitConversion: true,
     });
-    return await this.pagoGastoFijoService.getPagosPorInfoInicial(
-      Number(reqDto.infoInicialId),
+    return await this.pagoGastoFijoService.getPagosPorMes(
+      Number(reqDto.anio),
+      reqDto.mes,
       req.user.id,
     );
   }
@@ -80,7 +69,9 @@ export class PagoGastoFijoController {
     @Query() request: SearchPagoGastoFijoRequestDto,
     @Request() req: any,
   ): Promise<PageDto<PagoGastoFijoDTO>> {
-    const reqDto = plainToInstance(SearchPagoGastoFijoRequestDto, request, { enableImplicitConversion: true });
+    const reqDto = plainToInstance(SearchPagoGastoFijoRequestDto, request, {
+      enableImplicitConversion: true,
+    });
     return this.pagoGastoFijoService.search(reqDto, req.user.id);
   }
 

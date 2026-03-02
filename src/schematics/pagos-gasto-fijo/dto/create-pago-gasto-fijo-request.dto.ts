@@ -1,57 +1,73 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsBoolean, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsBoolean, IsOptional, IsEnum, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { MesEnum } from 'src/common/enums/mes-enum';
 
 export class CreatePagoGastoFijoRequestDto {
 
-  @ApiProperty({ 
-    description: 'ID del gasto fijo', 
-    type: Number, 
-    nullable: false, 
-    example: 1 
+  @ApiProperty({
+    description: 'ID del gasto fijo',
+    type: Number,
+    required: true,
+    example: 1,
   })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
   gastoFijoId: number;
 
-  @ApiProperty({ 
-    description: 'ID de la información inicial (mes/año)', 
-    type: Number, 
-    nullable: false, 
-    example: 1 
+  @ApiProperty({
+    description: 'Año',
+    type: Number,
+    required: true,
+    example: 2026,
   })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
-  infoInicialId: number;
+  anio: number;
 
-  @ApiProperty({ description: 'ID del medio de pago', type: Number, required: true })
+  @ApiProperty({
+    description: 'Mes',
+    enum: MesEnum,
+    required: true,
+  })
+  @IsNotEmpty()
+  @IsEnum(MesEnum)
+  mes: MesEnum;
+
+  @ApiProperty({
+    description: 'ID de la cuenta desde la que se paga',
+    type: Number,
+    required: true,
+    example: 1,
+  })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
-  medioPagoId: number;
+  cuentaId: number;
 
-  @ApiProperty({ 
-    description: 'Monto pagado del gasto fijo para este mes', 
-    type: Number, 
-    nullable: true, 
-    example: 5000.00,
-    minimum: 0.01
+  @ApiProperty({
+    description: 'Monto pagado',
+    type: Number,
+    required: false,
+    example: 5000,
+    minimum: 0,
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  montoPago?: number;
+  @Min(0)
+  monto?: number;
 
-  @ApiProperty({ 
-    description: 'Indica si el gasto fijo ya fue pagado', 
-    type: Boolean, 
-    nullable: true, 
-    example: false,
-    default: false
+  @ApiProperty({
+    description: 'Indica si está pagado',
+    type: Boolean,
+    required: false,
+    example: true,
   })
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   pagado?: boolean;
 }

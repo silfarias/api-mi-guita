@@ -4,7 +4,6 @@ import { Expose, Type } from 'class-transformer';
 import { CategoriaDTO } from 'src/schematics/categoria/dto/categoria.dto';
 import { PageMetadataDto } from 'src/common/dto/page-metadata.dto';
 import { UsuarioDTO } from 'src/schematics/usuario/dto/usuario.dto';
-import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
 
 export class GastoFijoDTO extends CommonDTO {
 
@@ -12,9 +11,13 @@ export class GastoFijoDTO extends CommonDTO {
   @Expose()
   nombre: string;
 
-  @ApiProperty({ description: 'Monto del gasto fijo', example: 5000.00 })
+  @ApiProperty({ description: 'Monto estimado del gasto fijo', example: 5000.00 })
   @Expose()
-  montoFijo: number;
+  montoEstimado: number;
+
+  @ApiProperty({ description: 'Día de vencimiento', example: '2026-03-10' })
+  @Expose()
+  diaVencimiento: Date;
 
   @ApiProperty({ description: 'Indica si el gasto fijo está activo para este usuario', example: true })
   @Expose()
@@ -23,11 +26,6 @@ export class GastoFijoDTO extends CommonDTO {
   @ApiProperty({ description: 'Indica si el gasto fijo es débito automático', example: true })
   @Expose()
   esDebitoAutomatico: boolean;
-
-  @ApiProperty({ description: 'Medio de pago utilizado para el débito automático', type: () => MedioPagoDTO, required: false })
-  @Expose()
-  @Type(() => MedioPagoDTO)
-  medioPago?: MedioPagoDTO;
 
   @ApiProperty({ description: 'Categoría del gasto fijo', type: () => CategoriaDTO })
   @Expose()

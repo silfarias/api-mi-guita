@@ -1,4 +1,6 @@
 export enum TipoMovimientoEnum {
   INGRESO = 'INGRESO',
   EGRESO = 'EGRESO',
+  TRANSFERENCIA = 'TRANSFERENCIA',
+  SALDO_INICIAL = 'SALDO_INICIAL',
 }

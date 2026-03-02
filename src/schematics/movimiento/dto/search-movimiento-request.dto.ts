@@ -12,11 +12,11 @@ export class SearchMovimientoRequestDto extends BaseSearchDto {
   @IsNumber()
   id?: number;
 
-  @ApiProperty({ description: 'ID de la información inicial', type: Number, required: false })
+  @ApiProperty({ description: 'ID de la cuenta', type: Number, required: false })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  infoInicialId?: number;
+  cuentaId?: number;
 
   @ApiProperty({ description: 'Tipo de movimiento', enum: TipoMovimientoEnum, required: false })
   @IsOptional()
@@ -28,12 +28,6 @@ export class SearchMovimientoRequestDto extends BaseSearchDto {
   @Type(() => Number)
   @IsNumber()
   categoriaId?: number;
-
-  @ApiProperty({ description: 'ID del medio de pago', type: Number, required: false })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  medioPagoId?: number;
 
   @ApiProperty({ description: 'Fecha desde (formato: YYYY-MM-DD)', type: String, required: false })
   @IsOptional()

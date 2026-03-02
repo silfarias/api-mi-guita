@@ -222,6 +222,51 @@ export class UsuarioService {
     await this.usuarioRepository.save(usuario);
   }
 
+  /** Establece el código de verificación de email y su fecha de expiración. */
+  async setVerificationCode(usuarioId: number, codigo: string, expiraEn: Date): Promise<void> {
+    const usuario = await this.getEntityService.findById(Usuario, usuarioId, []);
+    usuario.codigoVerificacionEmail = codigo;
+    usuario.codigoVerificacionExpiraEn = expiraEn;
+    await this.usuarioRepository.save(usuario);
+  }
+
+  /** Verifica el código y marca el email como verificado. Devuelve el usuario actualizado. */
+  async verifyCode(usuarioId: number, codigo: string): Promise<UsuarioDTO> {
+    const usuario = await this.getEntityService.findById(Usuario, usuarioId, [...RELATIONS]);
+    if (usuario.emailVerificado) {
+      return this.usuarioMapper.entity2DTO(usuario);
+    }
+    if (!usuario.codigoVerificacionEmail || usuario.codigoVerificacionEmail !== codigo) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'Código de verificación inválido');
+    }
+    const now = new Date();
+    if (!usuario.codigoVerificacionExpiraEn || now > usuario.codigoVerificacionExpiraEn) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'El código de verificación expiró. Solicitá uno nuevo.');
+    }
+    usuario.emailVerificado = true;
+    usuario.codigoVerificacionEmail = null;
+    usuario.codigoVerificacionExpiraEn = null;
+    await this.usuarioRepository.save(usuario);
+    const updated = await this.usuarioRepository.findOne({
+      where: { id: usuarioId },
+      relations: [...RELATIONS],
+    });
+    if (!updated) this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { id: usuarioId });
+    return this.usuarioMapper.entity2DTO(updated);
+  }
+
+  /** Genera un nuevo código de verificación y lo guarda. Devuelve email y código para que el llamador envíe el correo. */
+  async resendVerificationCode(usuarioId: number): Promise<{ email: string; codigo: string }> {
+    const usuario = await this.getEntityService.findById(Usuario, usuarioId, []);
+    if (usuario.emailVerificado) {
+      this.errorHandler.throwBadRequest(ERRORS.VALIDATION.INVALID_INPUT, 'El correo ya está verificado');
+    }
+    const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiraEn = new Date(Date.now() + 15 * 60 * 1000);
+    await this.setVerificationCode(usuarioId, codigo, expiraEn);
+    return { email: usuario.email, codigo };
+  }
+
   /** Alias para Auth: obtener usuario por ID como DTO */
   findOne(id: number): Promise<UsuarioDTO> {
     return this.findById(id);

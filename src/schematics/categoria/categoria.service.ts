@@ -47,7 +47,7 @@ export class CategoriaService {
     try {
       await this.validateUniqueNombre(request.nombre);
 
-      const newCategoria = this.categoriaMapper.createDTO2Entity(request);
+      const newCategoria = await this.categoriaMapper.createDTO2Entity(request);
       const saved = await this.categoriaRepository.save(newCategoria);
 
       const withRelations = await this.getEntityService.findById(Categoria, saved.id);
@@ -66,7 +66,7 @@ export class CategoriaService {
         await this.validateUniqueNombre(request.nombre);
       }
 
-      const updated = this.categoriaMapper.updateDTO2Entity(categoria, request);
+      const updated = await this.categoriaMapper.updateDTO2Entity(categoria, request);
       await this.categoriaRepository.save(updated);
 
       const withRelations = await this.getEntityService.findById(Categoria, id);

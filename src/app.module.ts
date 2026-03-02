@@ -5,14 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSourceConfigLocal } from './config/typeorm/data-source-local';
 import { LoggingMiddleware } from './middlewares/log-middleware';
 import { SharedServicesModule } from './common/shared-services.module';
+import { EmailModule } from './common/email/email.module';
 import { AuthModule } from './schematics/auth/auth.module';
 import { UsuarioModule } from './schematics/usuario/usuario.module';
 import { PersonaModule } from './schematics/persona/persona.module';
-import { InfoInicialModule } from './schematics/info-inicial/info-inicial.module';
 import { MovimientoModule } from './schematics/movimiento/movimiento.module';
 import { CategoriaModule } from './schematics/categoria/categoria.module';
-import { MedioPagoModule } from './schematics/medio-pago/medio-pago.module';
-import { ReportesModule } from './schematics/reportes/reportes.module';
+import { CuentaModule } from './schematics/cuenta/cuenta.module';
 import { TransferenciaModule } from './schematics/transferencia/transferencia.module';
 import { GastoFijoModule } from './schematics/gasto-fijo/gasto-fijo.module';
 import { PagoGastoFijoModule } from './schematics/pagos-gasto-fijo/pago-gasto-fijo.module';
@@ -27,14 +26,13 @@ import { PagoGastoFijoModule } from './schematics/pagos-gasto-fijo/pago-gasto-fi
       ...DataSourceConfigLocal,
     }),
     SharedServicesModule,
+    EmailModule,
     AuthModule,
     PersonaModule,
     UsuarioModule,
-    InfoInicialModule,
+    CuentaModule,
     MovimientoModule,
     CategoriaModule,
-    MedioPagoModule,
-    ReportesModule,
     TransferenciaModule,
     GastoFijoModule,
     PagoGastoFijoModule,

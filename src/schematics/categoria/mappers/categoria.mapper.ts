@@ -26,20 +26,20 @@ export class CategoriaMapper {
     return pageDto;
   }
 
-  createDTO2Entity(request: CreateCategoriaRequestDto): Categoria {
+  createDTO2Entity(request: CreateCategoriaRequestDto): Promise<Categoria> {
     const newCategoria: Categoria = new Categoria();
     newCategoria.nombre = request.nombre;
     newCategoria.descripcion = request.descripcion || null;
     newCategoria.color = request.color || null;
     newCategoria.icono = request.icono || null;
     newCategoria.activo = request.activo !== undefined ? request.activo : true;
-    return newCategoria;
+    return Promise.resolve(newCategoria);
   }
 
-  updateDTO2Entity(
+  async updateDTO2Entity(
     categoria: Categoria,
     request: UpdateCategoriaRequestDto,
-  ): Categoria {
+  ): Promise<Categoria> {
     if (request.nombre !== undefined) {
       categoria.nombre = request.nombre;
     }

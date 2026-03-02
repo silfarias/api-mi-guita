@@ -1,47 +1,36 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsOptional, IsDateString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateTransferenciaRequestDto {
-  @ApiProperty({ 
-    description: 'ID de la información inicial (mes) donde se realiza la transferencia', 
-    type: Number, 
-    nullable: false, 
-    example: 1 
+  @ApiProperty({
+    description: 'ID de la cuenta origen (de donde se transfiere)',
+    type: Number,
+    required: true,
+    example: 1,
   })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
-  infoInicialId: number;
+  cuentaOrigenId: number;
 
-  @ApiProperty({ 
-    description: 'ID del medio de pago origen (de donde se transfiere)', 
-    type: Number, 
-    nullable: false, 
-    example: 1 
+  @ApiProperty({
+    description: 'ID de la cuenta destino (hacia donde se transfiere)',
+    type: Number,
+    required: true,
+    example: 2,
   })
   @IsNotEmpty()
   @Type(() => Number)
   @IsNumber()
-  medioPagoOrigenId: number;
+  cuentaDestinoId: number;
 
-  @ApiProperty({ 
-    description: 'ID del medio de pago destino (hacia donde se transfiere)', 
-    type: Number, 
-    nullable: false, 
-    example: 2 
-  })
-  @IsNotEmpty()
-  @Type(() => Number)
-  @IsNumber()
-  medioPagoDestinoId: number;
-
-  @ApiProperty({ 
-    description: 'Monto a transferir', 
-    type: Number, 
-    nullable: false, 
+  @ApiProperty({
+    description: 'Monto a transferir',
+    type: Number,
+    required: true,
     example: 5000,
-    minimum: 0.01
+    minimum: 0.01,
   })
   @IsNotEmpty()
   @Type(() => Number)
@@ -49,12 +38,23 @@ export class CreateTransferenciaRequestDto {
   @Min(0.01)
   monto: number;
 
-  @ApiProperty({ 
-    description: 'Descripción de la transferencia (opcional)', 
-    type: String, 
-    nullable: true, 
-    example: 'Transferencia de efectivo a Mercado Pago' 
+  @ApiProperty({
+    description: 'Fecha de la transferencia (opcional, por defecto hoy)',
+    type: String,
+    format: 'date',
+    required: false,
   })
+  @IsOptional()
+  @IsDateString()
+  fecha?: string;
+
+  @ApiProperty({
+    description: 'Descripción de la transferencia (opcional)',
+    type: String,
+    required: false,
+    example: 'Transferencia de efectivo a Mercado Pago',
+  })
+  @IsOptional()
   @IsString()
   descripcion?: string;
 }

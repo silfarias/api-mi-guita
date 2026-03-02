@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
-
 import { PageDto } from 'src/common/dto/page.dto';
-
 import { GastoFijo } from '../entities/gasto-fijo.entity';
 import { SearchGastoFijoRequestDto } from '../dto/search-gasto-fijo-request.dto';
 
@@ -16,9 +14,7 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     const qb = this.createQueryBuilder('gastoFijo')
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
-      .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
       .leftJoinAndSelect('gastoFijo.pagosGastoFijo', 'pagosGastoFijo')
-      .leftJoinAndSelect('pagosGastoFijo.infoInicial', 'infoInicial')
       .where('usuario.id = :usuarioId', { usuarioId });
 
     if (request.id != null) qb.andWhere('gastoFijo.id = :id', { id: request.id });
@@ -28,7 +24,6 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     if (request.esDebitoAutomatico !== undefined) {
       qb.andWhere('gastoFijo.esDebitoAutomatico = :esDebitoAutomatico', { esDebitoAutomatico: request.esDebitoAutomatico });
     }
-    if (request.medioPagoId !== undefined) qb.andWhere('medioPago.id = :medioPagoId', { medioPagoId: request.medioPagoId });
 
     qb.orderBy('gastoFijo.nombre', 'ASC');
     qb.addOrderBy('gastoFijo.id', 'DESC');
@@ -41,7 +36,6 @@ export class GastoFijoRepository extends Repository<GastoFijo> {
     return this.createQueryBuilder('gastoFijo')
       .leftJoinAndSelect('gastoFijo.usuario', 'usuario')
       .leftJoinAndSelect('gastoFijo.categoria', 'categoria')
-      .leftJoinAndSelect('gastoFijo.medioPago', 'medioPago')
       .where('usuario.id = :usuarioId', { usuarioId })
       .andWhere('gastoFijo.deleted_date IS NULL')
       .andWhere('gastoFijo.activo = :activo', { activo: true })

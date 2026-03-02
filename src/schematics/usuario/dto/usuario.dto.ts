@@ -13,6 +13,10 @@ export class UsuarioDTO extends CommonDTO {
   @Expose()
   email: string;
 
+  @ApiProperty({ description: 'Indica si el correo fue verificado', type: Boolean, default: false })
+  @Expose()
+  emailVerificado: boolean;
+
   @ApiProperty({ description: 'Estado activo del usuario', type: Boolean, default: true })
   @Expose()
   activo: boolean;
@@ -45,6 +49,10 @@ export class UsuarioSimpleDTO {
   @ApiProperty({ description: 'Email del usuario', type: String })
   @Expose()
   email: string;
+
+  @ApiProperty({ description: 'Indica si el correo fue verificado', type: Boolean })
+  @Expose()
+  emailVerificado: boolean;
 
   @ApiProperty({ description: 'Estado activo del usuario', type: Boolean })
   @Expose()

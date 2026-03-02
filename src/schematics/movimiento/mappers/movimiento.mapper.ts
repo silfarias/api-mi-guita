@@ -6,38 +6,28 @@ import { CreateMovimientoRequestDto } from '../dto/create-movimiento-request.dto
 import { UpdateMovimientoRequestDto } from '../dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from '../dto/search-movimiento-request.dto';
 import { PageDto } from 'src/common/dto/page.dto';
-import { InfoInicialMapper } from 'src/schematics/info-inicial/mappers/info-inicial.mapper';
-import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
+import { Cuenta } from 'src/schematics/cuenta/entities/cuenta.entity';
 import { Categoria } from 'src/schematics/categoria/entities/categoria.entity';
-import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
 import { CategoriaMapper } from 'src/schematics/categoria/mappers/categoria.mapper';
-import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
+import { CuentaMapper } from 'src/schematics/cuenta/mappers/cuenta.mapper';
 
 @Injectable()
 export class MovimientoMapper {
   constructor(
-    private infoInicialMapper: InfoInicialMapper,
     private categoriaMapper: CategoriaMapper,
-    private medioPagoMapper: MedioPagoMapper,
+    private cuentaMapper: CuentaMapper,
   ) {}
 
   async entity2DTO(movimiento: Movimiento): Promise<MovimientoDTO> {
     const dto = plainToInstance(MovimientoDTO, movimiento, {
       excludeExtraneousValues: true,
     });
-    
-    if (movimiento.infoInicial) {
-      dto.infoInicial = await this.infoInicialMapper.entity2DTO(movimiento.infoInicial);
+    if (movimiento.cuenta) {
+      dto.cuenta = await this.cuentaMapper.entity2DTO(movimiento.cuenta);
     }
-    
     if (movimiento.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(movimiento.categoria);
     }
-    
-    if (movimiento.medioPago) {
-      dto.medioPago = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
-    }
-    
     return dto;
   }
 
@@ -45,15 +35,12 @@ export class MovimientoMapper {
     const dto = plainToInstance(MovimientoSimpleDTO, movimiento, {
       excludeExtraneousValues: true,
     });
-    
+    if (movimiento.cuenta) {
+      dto.cuenta = await this.cuentaMapper.entity2DTO(movimiento.cuenta);
+    }
     if (movimiento.categoria) {
       dto.categoria = await this.categoriaMapper.entity2DTO(movimiento.categoria);
     }
-    
-    if (movimiento.medioPago) {
-      dto.medioPago = await this.medioPagoMapper.entity2DTO(movimiento.medioPago);
-    }
-    
     return dto;
   }
 
@@ -62,9 +49,7 @@ export class MovimientoMapper {
     page: PageDto<Movimiento>,
   ): Promise<PageDto<MovimientoDTO>> {
     const dtos = await Promise.all(
-      page.data.map(async (movimiento) => {
-        return this.entity2DTO(movimiento);
-      }),
+      page.data.map((movimiento) => this.entity2DTO(movimiento)),
     );
     const pageDto = new PageDto<MovimientoDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
@@ -76,38 +61,30 @@ export class MovimientoMapper {
     request: SearchMovimientoRequestDto,
     page: PageDto<Movimiento>,
   ): Promise<PageDto<MovimientoAgrupadoDTO>> {
-    // Agrupar movimientos por infoInicial
-    const movimientosAgrupados = new Map<number, Movimiento[]>();
-    
+    const agrupados = new Map<number, Movimiento[]>();
     page.data.forEach((movimiento) => {
-      // Solo agrupar si tiene infoInicial
-      if (movimiento.infoInicial && movimiento.infoInicial.id) {
-        const infoInicialId = movimiento.infoInicial.id;
-        if (!movimientosAgrupados.has(infoInicialId)) {
-          movimientosAgrupados.set(infoInicialId, []);
+      if (movimiento.cuenta?.id) {
+        const cuentaId = movimiento.cuenta.id;
+        if (!agrupados.has(cuentaId)) {
+          agrupados.set(cuentaId, []);
         }
-        movimientosAgrupados.get(infoInicialId)!.push(movimiento);
+        agrupados.get(cuentaId)!.push(movimiento);
       }
     });
 
-    // Convertir a DTOs agrupados
     const dtosAgrupados = await Promise.all(
-      Array.from(movimientosAgrupados.entries()).map(async ([infoInicialId, movimientos]) => {
-        const infoInicial = movimientos[0].infoInicial;
+      Array.from(agrupados.entries()).map(async ([cuentaId, movimientos]) => {
+        const cuenta = movimientos[0].cuenta;
         const movimientosDTOs = await Promise.all(
-          movimientos.map(async (movimiento) => {
-            return this.entity2SimpleDTO(movimiento);
-          })
+          movimientos.map((m) => this.entity2SimpleDTO(m)),
         );
-
-        const agrupado: MovimientoAgrupadoDTO = plainToInstance(MovimientoAgrupadoDTO, {}, {
+        const agrupado = plainToInstance(MovimientoAgrupadoDTO, {}, {
           excludeExtraneousValues: true,
         });
-        agrupado.infoInicial = await this.infoInicialMapper.entity2DTO(infoInicial);
+        agrupado.cuenta = await this.cuentaMapper.entity2DTO(cuenta!);
         agrupado.movimientos = movimientosDTOs;
-        
         return agrupado;
-      })
+      }),
     );
 
     const pageDto = new PageDto<MovimientoAgrupadoDTO>(dtosAgrupados, page.metadata.count);
@@ -116,31 +93,31 @@ export class MovimientoMapper {
     return pageDto;
   }
 
-  createDTO2Entity(
-    request: CreateMovimientoRequestDto, 
-    infoInicial: InfoInicial,
-    categoria: Categoria,
-    medioPago: MedioPago,
-  ): Movimiento {
-    const newMovimiento: Movimiento = new Movimiento();
-    newMovimiento.fecha = request.fecha ? request.fecha : new Date();
+  async createDTO2Entity(
+    request: CreateMovimientoRequestDto,
+    cuenta: Cuenta,
+    categoria: Categoria | null,
+    usuarioId: number,
+  ): Promise<Movimiento> {
+    const newMovimiento = new Movimiento();
+    newMovimiento.fecha = request.fecha ? new Date(request.fecha) : new Date();
     newMovimiento.tipoMovimiento = request.tipoMovimiento;
     newMovimiento.descripcion = request.descripcion;
     newMovimiento.monto = request.monto;
-    newMovimiento.infoInicial = infoInicial;
+    newMovimiento.cuenta = cuenta;
     newMovimiento.categoria = categoria;
-    newMovimiento.medioPago = medioPago;
+    newMovimiento.usuario = { id: usuarioId } as any;
     return newMovimiento;
   }
 
-  updateDTO2Entity(
+  async updateDTO2Entity(
     movimiento: Movimiento,
     request: UpdateMovimientoRequestDto,
-    categoria?: Categoria,
-    medioPago?: MedioPago,
-  ): Movimiento {
+    categoria?: Categoria | null,
+    cuenta?: Cuenta | null,
+  ): Promise<Movimiento> {
     if (request.fecha !== undefined) {
-      movimiento.fecha = request.fecha ? request.fecha : new Date();
+      movimiento.fecha = request.fecha ? new Date(request.fecha) : new Date();
     }
     if (request.tipoMovimiento !== undefined) {
       movimiento.tipoMovimiento = request.tipoMovimiento;
@@ -152,10 +129,10 @@ export class MovimientoMapper {
       movimiento.monto = request.monto;
     }
     if (categoria !== undefined) {
-      movimiento.categoria = categoria;
+      movimiento.categoria = categoria ?? null;
     }
-    if (medioPago !== undefined) {
-      movimiento.medioPago = medioPago;
+    if (cuenta !== undefined) {
+      movimiento.cuenta = cuenta ?? movimiento.cuenta;
     }
     return movimiento;
   }

@@ -2,8 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose, Type } from 'class-transformer';
 import { GastoFijoDTO } from 'src/schematics/gasto-fijo/dto/gasto-fijo.dto';
-import { InfoInicialDTO } from 'src/schematics/info-inicial/dto/info-inicial.dto';
-import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
+import { MesEnum } from 'src/common/enums/mes-enum';
 
 export class PagoGastoFijoDTO extends CommonDTO {
 
@@ -12,49 +11,41 @@ export class PagoGastoFijoDTO extends CommonDTO {
   @Type(() => GastoFijoDTO)
   gastoFijo: GastoFijoDTO;
 
-  @ApiProperty({ description: 'Información inicial (mes/año) asociada', type: () => InfoInicialDTO })
+  @ApiProperty({ description: 'Mes', enum: MesEnum })
   @Expose()
-  @Type(() => InfoInicialDTO)
-  infoInicial: InfoInicialDTO;
+  mes: MesEnum;
 
-  @ApiProperty({ description: 'Medio de pago asociado', type: () => MedioPagoDTO, required: false })
+  @ApiProperty({ description: 'Año', example: 2026 })
   @Expose()
-  @Type(() => MedioPagoDTO)
-  medioPago?: MedioPagoDTO;
+  anio: number;
 
-  @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes', example: 5000.00 })
+  @ApiProperty({ description: 'Monto pagado para este mes', example: 5000 })
   @Expose()
-  montoPago: number;
+  monto: number;
 
-  @ApiProperty({ description: 'Indica si el gasto fijo ya fue pagado para este mes', example: false })
+  @ApiProperty({ description: 'Indica si está pagado', example: false })
   @Expose()
   pagado: boolean;
 }
 
 export class PagoSimpleDTO {
 
-  @ApiProperty({ description: 'ID del pago del gasto fijo (undefined si aún no existe registro)' })
+  @ApiProperty({ description: 'ID del pago (undefined si no existe registro)' })
   @Expose()
   id?: number;
 
-  @ApiProperty({ description: 'Monto pagado del gasto fijo para este mes' })
+  @ApiProperty({ description: 'Monto pagado para este mes' })
   @Expose()
-  montoPago: number;
+  monto: number;
 
-  @ApiProperty({ description: 'Indica si el gasto fijo ya fue pagado para este mes' })
+  @ApiProperty({ description: 'Indica si está pagado' })
   @Expose()
   pagado: boolean;
-
-  @ApiProperty({ description: 'Medio de pago asociado', type: () => MedioPagoDTO, required: false })
-  @Expose()
-  @Type(() => MedioPagoDTO)
-  medioPago?: MedioPagoDTO;
-
 }
 
 export class Pagos {
 
-  @ApiProperty({ description: 'Gasto fijo asociado', type: () => GastoFijoDTO })
+  @ApiProperty({ description: 'Gasto fijo', type: () => GastoFijoDTO })
   @Expose()
   @Type(() => GastoFijoDTO)
   gastoFijo: GastoFijoDTO;
@@ -62,19 +53,21 @@ export class Pagos {
   @ApiProperty({ description: 'Pago del gasto fijo para este mes', type: () => PagoSimpleDTO })
   @Expose()
   @Type(() => PagoSimpleDTO)
-  pago: PagoSimpleDTO
+  pago: PagoSimpleDTO;
 }
 
 export class PagosGastoFijoDTO {
 
-  @ApiProperty({ description: 'Información inicial (mes/año) asociada', type: () => InfoInicialDTO })
+  @ApiProperty({ description: 'Año', example: 2026 })
   @Expose()
-  @Type(() => InfoInicialDTO)
-  infoInicial: InfoInicialDTO;
+  anio: number;
 
-  @ApiProperty({ description: 'Pagos del gasto fijo para este mes', type: () => [Pagos] })
+  @ApiProperty({ description: 'Mes', enum: MesEnum })
+  @Expose()
+  mes: MesEnum;
+
+  @ApiProperty({ description: 'Pagos por gasto fijo para este mes', type: () => [Pagos] })
   @Expose()
   @Type(() => Pagos)
-  pagos: Pagos[]
-
+  pagos: Pagos[];
 }

@@ -1,19 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { MovimientoDTO } from 'src/schematics/movimiento/dto/movimiento.dto';
+import { CuentaDTO } from 'src/schematics/cuenta/dto/cuenta.dto';
 
 export class TransferenciaDTO {
-  @ApiProperty({ description: 'Movimiento de egreso (origen)', type: () => MovimientoDTO })
+  @ApiProperty({ description: 'ID de la transferencia' })
   @Expose()
-  @Type(() => MovimientoDTO)
-  movimientoEgreso: MovimientoDTO;
+  id: number;
 
-  @ApiProperty({ description: 'Movimiento de ingreso (destino)', type: () => MovimientoDTO })
+  @ApiProperty({ description: 'Cuenta origen', type: () => CuentaDTO })
   @Expose()
-  @Type(() => MovimientoDTO)
-  movimientoIngreso: MovimientoDTO;
+  @Type(() => CuentaDTO)
+  cuentaOrigen: CuentaDTO;
+
+  @ApiProperty({ description: 'Cuenta destino', type: () => CuentaDTO })
+  @Expose()
+  @Type(() => CuentaDTO)
+  cuentaDestino: CuentaDTO;
 
   @ApiProperty({ description: 'Monto transferido', example: 5000 })
   @Expose()
   monto: number;
+
+  @ApiProperty({ description: 'Fecha de la transferencia' })
+  @Expose()
+  fecha: Date;
 }

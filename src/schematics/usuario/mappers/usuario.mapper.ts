@@ -21,6 +21,7 @@ export class UsuarioMapper {
     const dto = plainToInstance(UsuarioDTO, usuario, {
       excludeExtraneousValues: true,
     });
+    dto.emailVerificado = usuario.emailVerificado ?? false;
     if (usuario.persona) {
       dto.persona = await this.personaMapper.entity2DTO(usuario.persona);
     }

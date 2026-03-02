@@ -5,18 +5,14 @@ import { MovimientoMapper } from './mappers/movimiento.mapper';
 import { MovimientoRepository } from './repository/movimiento.repository';
 import { MovimientoController } from './movimiento.controller';
 import { MovimientoService } from './movimiento.service';
-import { InfoInicialModule } from '../info-inicial/info-inicial.module';
+import { CuentaModule } from '../cuenta/cuenta.module';
 import { CategoriaModule } from '../categoria/categoria.module';
-import { MedioPagoModule } from '../medio-pago/medio-pago.module';
-import { ReportesModule } from '../reportes/reportes.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Movimiento]),
-    forwardRef(() => InfoInicialModule),
+    forwardRef(() => CuentaModule),
     forwardRef(() => CategoriaModule),
-    forwardRef(() => MedioPagoModule),
-    forwardRef(() => ReportesModule),
   ],
   controllers: [MovimientoController],
   providers: [MovimientoService, MovimientoRepository, MovimientoMapper],

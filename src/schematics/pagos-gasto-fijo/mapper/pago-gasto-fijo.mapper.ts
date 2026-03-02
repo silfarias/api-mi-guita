@@ -1,13 +1,9 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-
 import { PageDto } from 'src/common/dto/page.dto';
 import { GastoFijoMapper } from 'src/schematics/gasto-fijo/mappers/gasto-fijo.mapper';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
-import { InfoInicial } from 'src/schematics/info-inicial/entities/info-inicial.entity';
-import { InfoInicialMapper } from 'src/schematics/info-inicial/mappers/info-inicial.mapper';
-import { MedioPagoMapper } from 'src/schematics/medio-pago/mappers/medio-pago.mapper';
-import { MedioPago } from 'src/schematics/medio-pago/entities/medio-pago.entity';
+import { MesEnum } from 'src/common/enums/mes-enum';
 
 import { PagoGastoFijo } from '../entities/pago-gasto-fijo.entity';
 import {
@@ -25,23 +21,16 @@ export class PagoGastoFijoMapper {
   constructor(
     @Inject(forwardRef(() => GastoFijoMapper))
     private gastoFijoMapper: GastoFijoMapper,
-    private infoInicialMapper: InfoInicialMapper,
-    private medioPagoMapper: MedioPagoMapper,
   ) {}
 
   async entity2DTO(pagoGastoFijo: PagoGastoFijo): Promise<PagoGastoFijoDTO> {
     const dto = plainToInstance(PagoGastoFijoDTO, pagoGastoFijo, {
       excludeExtraneousValues: true,
     });
-
+    dto.monto = Number(pagoGastoFijo.monto ?? 0);
     if (pagoGastoFijo.gastoFijo) {
       dto.gastoFijo = await this.gastoFijoMapper.entity2DTO(pagoGastoFijo.gastoFijo);
     }
-
-    if (pagoGastoFijo.infoInicial) {
-      dto.infoInicial = await this.infoInicialMapper.entity2DTO(pagoGastoFijo.infoInicial);
-    }
-
     return dto;
   }
 
@@ -50,7 +39,7 @@ export class PagoGastoFijoMapper {
     page: PageDto<PagoGastoFijo>,
   ): Promise<PageDto<PagoGastoFijoDTO>> {
     const dtos = await Promise.all(
-      page.data.map(async (pagoGastoFijo) => this.entity2DTO(pagoGastoFijo)),
+      page.data.map((pagoGastoFijo) => this.entity2DTO(pagoGastoFijo)),
     );
     const pageDto = new PageDto<PagoGastoFijoDTO>(dtos, page.metadata.count);
     pageDto.metadata.setPaginationData(request.getPageNumber(), request.getTake());
@@ -58,29 +47,28 @@ export class PagoGastoFijoMapper {
     return pageDto;
   }
 
-  createDTO2Entity(
+  async createDTO2Entity(
     request: CreatePagoGastoFijoRequestDto,
     gastoFijo: GastoFijo,
-    infoInicial: InfoInicial,
-  ): PagoGastoFijo {
-    const newPagoGastoFijo = new PagoGastoFijo();
-    newPagoGastoFijo.gastoFijo = gastoFijo;
-    newPagoGastoFijo.infoInicial = infoInicial;
-    newPagoGastoFijo.montoPago =
-      request.montoPago !== undefined ? request.montoPago : (gastoFijo.montoFijo || 0);
-    newPagoGastoFijo.pagado = request.pagado !== undefined ? request.pagado : false;
-    return newPagoGastoFijo;
+    usuarioId: number,
+  ): Promise<PagoGastoFijo> {
+    const newPago = new PagoGastoFijo();
+    newPago.gastoFijo = gastoFijo;
+    newPago.mes = request.mes;
+    newPago.anio = request.anio;
+    newPago.monto =
+      request.monto !== undefined ? request.monto : Number(gastoFijo.montoEstimado ?? 0);
+    newPago.pagado = request.pagado ?? false;
+    newPago.usuario = { id: usuarioId } as any;
+    return newPago;
   }
 
-  updateDTO2Entity(
+  async updateDTO2Entity(
     pagoGastoFijo: PagoGastoFijo,
     request: UpdatePagoGastoFijoRequestDto,
-  ): PagoGastoFijo {
-    if (request.montoPago !== undefined) {
-      pagoGastoFijo.montoPago = request.montoPago;
-    }
-    if (request.medioPagoId !== undefined) {
-      pagoGastoFijo.medioPago = request.medioPagoId ? MedioPago.fromId(request.medioPagoId) : null;
+  ): Promise<PagoGastoFijo> {
+    if (request.monto !== undefined) {
+      pagoGastoFijo.monto = request.monto;
     }
     if (request.pagado !== undefined) {
       pagoGastoFijo.pagado = request.pagado;
@@ -89,7 +77,8 @@ export class PagoGastoFijoMapper {
   }
 
   async toPagosGastoFijoDTO(
-    infoInicial: InfoInicial,
+    anio: number,
+    mes: MesEnum,
     gastosFijos: GastoFijo[],
     gastosFijosPagos: PagoGastoFijo[],
   ): Promise<PagosGastoFijoDTO> {
@@ -103,13 +92,10 @@ export class PagoGastoFijoMapper {
         const pago: PagoSimpleDTO = pagoEntity
           ? {
               id: pagoEntity.id,
-              montoPago: Number(pagoEntity.montoPago),
+              monto: Number(pagoEntity.monto),
               pagado: pagoEntity.pagado,
-              medioPago: pagoEntity.medioPago
-                ? await this.medioPagoMapper.entity2DTO(pagoEntity.medioPago)
-                : undefined,
             }
-          : { id: undefined, montoPago: 0, pagado: false };
+          : { id: undefined, monto: 0, pagado: false };
 
         return {
           gastoFijo: await this.gastoFijoMapper.entity2DTO(gastoFijo),
@@ -119,7 +105,8 @@ export class PagoGastoFijoMapper {
     );
 
     const response = new PagosGastoFijoDTO();
-    response.infoInicial = await this.infoInicialMapper.entity2DTO(infoInicial);
+    response.anio = anio;
+    response.mes = mes;
     response.pagos = pagos;
     return response;
   }

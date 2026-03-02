@@ -4,30 +4,26 @@ import { Type } from 'class-transformer';
 
 export class UpdatePagoGastoFijoRequestDto {
 
-  @ApiProperty({ description: 'ID del medio de pago', type: Number, required: false })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  medioPagoId?: number;
-
-  @ApiProperty({ 
-    description: 'Monto pagado del gasto fijo para este mes', 
-    type: Number, 
-    nullable: true, 
-    example: 5000.00,
+  @ApiProperty({
+    description: 'Monto pagado',
+    type: Number,
+    required: false,
+    example: 5000,
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  montoPago?: number;
+  @Min(0)
+  monto?: number;
 
-  @ApiProperty({ 
-    description: 'Indica si el gasto fijo ya fue pagado', 
-    type: Boolean, 
-    nullable: true, 
-    example: false
+  @ApiProperty({
+    description: 'Indica si está pagado',
+    type: Boolean,
+    required: false,
+    example: true,
   })
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   pagado?: boolean;
 }

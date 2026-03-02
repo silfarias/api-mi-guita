@@ -30,10 +30,10 @@ export class TransferenciaController {
   ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Crear una transferencia entre medios de pago' })
+  @ApiOperation({ summary: 'Crear una transferencia entre cuentas' })
   @ApiBody({
     type: CreateTransferenciaRequestDto,
-    description: 'Datos de la transferencia',
+    description: 'Datos de la transferencia (cuenta origen, cuenta destino, monto)',
   })
   @ApiOkResponse({
     type: TransferenciaDTO,

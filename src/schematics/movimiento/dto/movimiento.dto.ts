@@ -2,9 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose, Type } from 'class-transformer';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
-import { InfoInicialDTO } from 'src/schematics/info-inicial/dto/info-inicial.dto';
+import { CuentaDTO } from 'src/schematics/cuenta/dto/cuenta.dto';
 import { CategoriaDTO } from 'src/schematics/categoria/dto/categoria.dto';
-import { MedioPagoDTO } from 'src/schematics/medio-pago/dto/medio-pago.dto';
 import { IsEnum } from 'class-validator';
 
 export class MovimientoSimpleDTO extends CommonDTO {
@@ -17,10 +16,15 @@ export class MovimientoSimpleDTO extends CommonDTO {
   @IsEnum(TipoMovimientoEnum)
   tipoMovimiento: TipoMovimientoEnum;
 
-  @ApiProperty({ description: 'Categoría del movimiento', type: () => CategoriaDTO })
+  @ApiProperty({ description: 'Cuenta del movimiento', type: () => CuentaDTO })
+  @Expose()
+  @Type(() => CuentaDTO)
+  cuenta: CuentaDTO;
+
+  @ApiProperty({ description: 'Categoría del movimiento', type: () => CategoriaDTO, required: false })
   @Expose()
   @Type(() => CategoriaDTO)
-  categoria: CategoriaDTO;
+  categoria?: CategoriaDTO;
 
   @ApiProperty({ description: 'Descripción del movimiento', type: String })
   @Expose()
@@ -29,19 +33,17 @@ export class MovimientoSimpleDTO extends CommonDTO {
   @ApiProperty({ description: 'Monto del movimiento', type: Number })
   @Expose()
   monto: number;
-
-  @ApiProperty({ description: 'Medio de pago utilizado', type: () => MedioPagoDTO })
-  @Expose()
-  @Type(() => MedioPagoDTO)
-  medioPago: MedioPagoDTO;
 }
 
 export class MovimientoDTO {
-
-  @ApiProperty({ description: 'Información inicial asociada', type: () => InfoInicialDTO })
+  @ApiProperty({ description: 'ID del movimiento' })
   @Expose()
-  @Type(() => InfoInicialDTO)
-  infoInicial: InfoInicialDTO;
+  id: number;
+
+  @ApiProperty({ description: 'Cuenta asociada', type: () => CuentaDTO })
+  @Expose()
+  @Type(() => CuentaDTO)
+  cuenta: CuentaDTO;
 
   @ApiProperty({ description: 'Fecha del movimiento', type: Date })
   @Expose()
@@ -52,10 +54,10 @@ export class MovimientoDTO {
   @IsEnum(TipoMovimientoEnum)
   tipoMovimiento: TipoMovimientoEnum;
 
-  @ApiProperty({ description: 'Categoría del movimiento', type: () => CategoriaDTO })
+  @ApiProperty({ description: 'Categoría del movimiento', type: () => CategoriaDTO, required: false })
   @Expose()
   @Type(() => CategoriaDTO)
-  categoria: CategoriaDTO;
+  categoria?: CategoriaDTO;
 
   @ApiProperty({ description: 'Descripción del movimiento', type: String })
   @Expose()
@@ -64,24 +66,16 @@ export class MovimientoDTO {
   @ApiProperty({ description: 'Monto del movimiento', type: Number })
   @Expose()
   monto: number;
-
-  @ApiProperty({ description: 'Medio de pago utilizado', type: () => MedioPagoDTO })
-  @Expose()
-  @Type(() => MedioPagoDTO)
-  medioPago: MedioPagoDTO;
 }
 
-
 export class MovimientoAgrupadoDTO {
-
-  @ApiProperty({ description: 'Información inicial asociada', type: () => InfoInicialDTO })
+  @ApiProperty({ description: 'Cuenta asociada', type: () => CuentaDTO })
   @Expose()
-  @Type(() => InfoInicialDTO)
-  infoInicial: InfoInicialDTO;
+  @Type(() => CuentaDTO)
+  cuenta: CuentaDTO;
 
-  @ApiProperty({ description: 'Movimientos agrupados por esta información inicial', type: () => [MovimientoSimpleDTO] })
+  @ApiProperty({ description: 'Movimientos agrupados por cuenta', type: () => [MovimientoSimpleDTO] })
   @Expose()
   @Type(() => MovimientoSimpleDTO)
   movimientos: MovimientoSimpleDTO[];
-
 }

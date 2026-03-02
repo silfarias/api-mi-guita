@@ -9,6 +9,14 @@ export class SignupResponseDto {
   @Expose()
   access_token: string;
 
+  @ApiProperty({ description: 'Token de refresco para renovar el access token', type: String })
+  @Expose()
+  refresh_token: string;
+
+  @ApiProperty({ description: 'Tiempo de expiración del access token (ej: 1h)', type: String, example: '1h' })
+  @Expose()
+  expires_in: string;
+
   @ApiProperty({ description: 'Información del usuario registrado', type: UsuarioDTO })
   @Expose()
   @Type(() => UsuarioDTO)

@@ -8,10 +8,12 @@ import { AuthService } from './auth.service';
 import { UsuarioDTO } from '../usuario/dto/usuario.dto';
 import { LoginUsuarioRequestDto } from '../usuario/dto/login-usuario-request.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { RefreshTokenRequestDto } from './dto/refresh-token-request.dto';
 import { SignupRequestDto } from './dto/signup-request.dto';
 import { SignupResponseDto } from './dto/signup-response.dto';
 import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
 import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
+import { VerifyEmailRequestDto } from './dto/verify-email-request.dto';
 import { SwaggerSignupRequestDto } from './dto/swagger-usuario-request.dto';
 
 @ApiTags('Auth')
@@ -43,9 +45,9 @@ export class AuthController {
   }
 
   @Post('login')
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Iniciar sesión de usuario',
-    description: 'Inicia sesión de usuario proporcionando su email y contraseña'
+    description: 'Inicia sesión de usuario proporcionando su email y contraseña. Devuelve access_token (usar en Authorization) y refresh_token (guardar para renovar sin volver a loguear).',
   })
   @ApiBody({
     type: LoginUsuarioRequestDto,
@@ -53,7 +55,7 @@ export class AuthController {
   })
   @ApiOkResponse({
     type: LoginResponseDto,
-    description: 'Login exitoso con token JWT',
+    description: 'Login exitoso con access token y refresh token',
   })
   @ApiBadRequestResponse({ description: 'Solicitud incorrecta' })
   @ApiUnauthorizedResponse({ description: 'Credenciales inválidas' })
@@ -65,6 +67,26 @@ export class AuthController {
       loginUsuarioRequestDto.contrasena,
     );
     return this.authService.login(usuario);
+  }
+
+  @Post('refresh')
+  @ApiOperation({
+    summary: 'Renovar tokens',
+    description: 'Intercambia un refresh token válido por un nuevo access_token y refresh_token. Usar cuando el access token expire.',
+  })
+  @ApiBody({
+    type: RefreshTokenRequestDto,
+    description: 'Refresh token obtenido en login o en la última llamada a /refresh',
+  })
+  @ApiOkResponse({
+    type: LoginResponseDto,
+    description: 'Nuevo par de tokens y datos del usuario',
+  })
+  @ApiUnauthorizedResponse({ description: 'Refresh token inválido o expirado' })
+  async refresh(
+    @Body() body: RefreshTokenRequestDto,
+  ): Promise<LoginResponseDto> {
+    return this.authService.refreshTokens(body.refresh_token);
   }
 
   @Get('me')
@@ -83,6 +105,58 @@ export class AuthController {
     @Request() req: any
   ): Promise<UsuarioDTO> {
     return await this.authService.getCurrentUser(req.user.id);
+  }
+
+  @Post('verify-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({
+    summary: 'Verificar correo con código',
+    description: 'Verifica el correo del usuario con el código de 6 dígitos enviado por email. Requiere estar autenticado.',
+  })
+  @ApiBody({
+    type: VerifyEmailRequestDto,
+    description: 'Código de 6 dígitos recibido por correo',
+  })
+  @ApiOkResponse({
+    description: 'Correo verificado correctamente',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Correo verificado correctamente' },
+        usuario: { $ref: '#/components/schemas/UsuarioDTO' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Código inválido o expirado' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async verifyEmail(
+    @Request() req: any,
+    @Body() body: VerifyEmailRequestDto,
+  ): Promise<{ message: string; usuario: UsuarioDTO }> {
+    return this.authService.verifyEmail(req.user.id, body.codigo);
+  }
+
+  @Post('send-verification-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('authorization')
+  @ApiOperation({
+    summary: 'Reenviar código de verificación',
+    description: 'Genera un nuevo código y lo envía al correo del usuario. Usar cuando el código anterior haya expirado o no llegó. Requiere estar autenticado.',
+  })
+  @ApiOkResponse({
+    description: 'Código reenviado',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Código de verificación reenviado a tu correo' },
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'El correo ya está verificado' })
+  @ApiUnauthorizedResponse({ description: 'No autorizado' })
+  async sendVerificationEmail(@Request() req: any): Promise<{ message: string }> {
+    return this.authService.resendVerificationEmail(req.user.id);
   }
 
   @Post('logout')
