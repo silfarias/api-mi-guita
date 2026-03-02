@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { CreateMovimientoRequestDto } from './dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from './dto/update-movimiento-request.dto';
@@ -57,22 +57,28 @@ export class MovimientoService {
     }
     if (tipoMovimiento === TipoMovimientoEnum.INGRESO || tipoMovimiento === TipoMovimientoEnum.EGRESO) {
       if (!categoriaId && !categoria) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'La categoría es obligatoria para movimientos de tipo INGRESO y EGRESO',
-        });
+        this.errorHandler.throwBadRequest(
+          {
+            CODE: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            MESSAGE: 'La categoría es obligatoria para movimientos de tipo INGRESO y EGRESO',
+          },
+        );
       }
       if (categoria && tipoMovimiento === TipoMovimientoEnum.INGRESO && categoria.tipo !== TipoCategoriaEnum.INGRESO) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'La categoría debe ser de tipo INGRESO para este movimiento',
-        });
+        this.errorHandler.throwBadRequest(
+          {
+            CODE: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            MESSAGE: 'La categoría debe ser de tipo INGRESO para este movimiento',
+          },
+        );
       }
       if (categoria && tipoMovimiento === TipoMovimientoEnum.EGRESO && categoria.tipo !== TipoCategoriaEnum.EGRESO) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'La categoría debe ser de tipo EGRESO para este movimiento',
-        });
+        this.errorHandler.throwBadRequest(
+          {
+            CODE: ERRORS.VALIDATION.INVALID_INPUT.CODE,
+            MESSAGE: 'La categoría debe ser de tipo EGRESO para este movimiento',
+          },
+        );
       }
     }
   }
@@ -88,11 +94,13 @@ export class MovimientoService {
       relations: ['usuario'],
     });
     if (!cuenta) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: 'Cuenta no encontrada',
-        details: JSON.stringify({ cuentaId }),
-      });
+      this.errorHandler.throwNotFound(
+        {
+          CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+          MESSAGE: 'Cuenta no encontrada',
+        },
+        { cuentaId },
+      );
     }
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -134,22 +142,26 @@ export class MovimientoService {
       relations: ['usuario'],
     });
     if (!cuenta) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: 'Cuenta no encontrada',
-        details: JSON.stringify({ cuentaId: request.cuentaId }),
-      });
+      this.errorHandler.throwNotFound(
+        {
+          CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+          MESSAGE: 'Cuenta no encontrada',
+        },
+        { cuentaId: request.cuentaId },
+      );
     }
 
     let categoria: Categoria | null = null;
     if (request.tipoMovimiento !== TipoMovimientoEnum.SALDO_INICIAL && request.categoriaId != null) {
       categoria = await this.categoriaRepository.findOne({ where: { id: request.categoriaId } });
       if (!categoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Categoría no encontrada',
-          details: JSON.stringify({ categoriaId: request.categoriaId }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Categoría no encontrada',
+          },
+          { categoriaId: request.categoriaId },
+        );
       }
     }
     this.validarCategoriaParaTipo(request.tipoMovimiento, categoria, request.categoriaId);
@@ -199,18 +211,16 @@ export class MovimientoService {
       relations: ['cuenta', 'cuenta.usuario', 'categoria', 'usuario'],
     });
     if (!movimiento) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+      this.errorHandler.throwNotFound(
+        ERRORS.DATABASE.RECORD_NOT_FOUND,
+        { id },
+      );
     }
     if (movimiento.usuario?.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: ERRORS.VALIDATION.INVALID_INPUT.MESSAGE,
-        details: 'No tienes permiso para modificar este movimiento',
-      });
+      this.errorHandler.throwBadRequest(
+        ERRORS.VALIDATION.INVALID_INPUT,
+        'No tienes permiso para modificar este movimiento',
+      );
     }
 
     let categoria = movimiento.categoria ?? undefined;
@@ -219,11 +229,13 @@ export class MovimientoService {
         where: { id: request.categoriaId },
       });
       if (!nuevaCategoria) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Categoría no encontrada',
-          details: JSON.stringify({ categoriaId: request.categoriaId }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Categoría no encontrada',
+          },
+          { categoriaId: request.categoriaId },
+        );
       }
       categoria = nuevaCategoria;
     }
@@ -240,11 +252,13 @@ export class MovimientoService {
         where: { id: request.cuentaId, usuario: { id: usuarioId } },
       });
       if (!nuevaCuenta) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Cuenta no encontrada',
-          details: JSON.stringify({ cuentaId: request.cuentaId }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Cuenta no encontrada',
+          },
+          { cuentaId: request.cuentaId },
+        );
       }
       cuenta = nuevaCuenta;
     }
@@ -304,18 +318,16 @@ export class MovimientoService {
       relations: ['cuenta', 'usuario'],
     });
     if (!movimiento) {
-      throw new NotFoundException({
-        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-        message: ERRORS.DATABASE.RECORD_NOT_FOUND.MESSAGE,
-        details: JSON.stringify({ id }),
-      });
+      this.errorHandler.throwNotFound(
+        ERRORS.DATABASE.RECORD_NOT_FOUND,
+        { id },
+      );
     }
     if (movimiento.usuario?.id !== usuarioId) {
-      throw new BadRequestException({
-        code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-        message: 'No tienes permiso para eliminar este movimiento',
-        details: JSON.stringify({ id }),
-      });
+      this.errorHandler.throwBadRequest(
+        ERRORS.VALIDATION.INVALID_INPUT,
+        { id, message: 'No tienes permiso para eliminar este movimiento' },
+      );
     }
 
     const queryRunner = this.dataSource.createQueryRunner();

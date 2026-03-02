@@ -1,4 +1,4 @@
-import { Injectable, HttpException, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, HttpException, Inject, forwardRef } from '@nestjs/common';
 import { Cuenta } from './entities/cuenta.entity';
 import { CuentaMapper } from './mappers/cuenta.mapper';
 import { CuentaRepository } from './repository/cuenta.repository';
@@ -36,11 +36,13 @@ export class CuentaService {
         relations: ['usuario'],
       });
       if (!cuenta) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Cuenta no encontrada',
-          details: JSON.stringify({ id }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Cuenta no encontrada',
+          },
+          { id },
+        );
       }
       return await this.cuentaMapper.entity2DTO(cuenta);
     } catch (error) {
@@ -96,11 +98,10 @@ export class CuentaService {
       const nombresUnicos = new Set(nombresEnRequest);
       if (nombresEnRequest.length !== nombresUnicos.size) {
         const duplicados = nombresEnRequest.filter((n, i) => nombresEnRequest.indexOf(n) !== i);
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'No se pueden crear cuentas con nombres duplicados en la misma solicitud',
-          details: JSON.stringify({ nombresDuplicados: [...new Set(duplicados)] }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          { nombresDuplicados: [...new Set(duplicados)] },
+        );
       }
 
       const cuentasExistentes = await this.cuentaRepository.find({
@@ -111,11 +112,10 @@ export class CuentaService {
         nombresExistentes.has(c.nombre.trim().toLowerCase()),
       );
       if (conflictos.length > 0) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'Ya existen cuentas con algunos de esos nombres para este usuario',
-          details: JSON.stringify({ nombres: conflictos.map((c) => c.nombre) }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          { nombres: conflictos.map((c) => c.nombre) },
+        );
       }
 
       const nuevasCuentas = await Promise.all(
@@ -152,11 +152,13 @@ export class CuentaService {
         relations: ['usuario'],
       });
       if (!cuenta) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Cuenta no encontrada',
-          details: JSON.stringify({ id }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Cuenta no encontrada',
+          },
+          { id },
+        );
       }
       const updated = await this.cuentaMapper.updateDTO2Entity(cuenta, request);
       await this.cuentaRepository.save(updated);
@@ -177,11 +179,13 @@ export class CuentaService {
         where: { id, usuario: { id: usuarioId } },
       });
       if (!cuenta) {
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Cuenta no encontrada',
-          details: JSON.stringify({ id }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Cuenta no encontrada',
+          },
+          { id },
+        );
       }
       const [countMovimientos, countTransferenciasOrigen, countTransferenciasDestino] = await Promise.all([
         this.movimientoRepository.count({ where: { cuenta: { id } } }),
@@ -190,14 +194,15 @@ export class CuentaService {
       ]);
       const totalTransferencias = countTransferenciasOrigen + countTransferenciasDestino;
       if (countMovimientos > 0 || totalTransferencias > 0) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'No se puede eliminar la cuenta porque tiene movimientos o transferencias asociados',
-          details: JSON.stringify({
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          {
+            message:
+              'No se puede eliminar la cuenta porque tiene movimientos o transferencias asociados',
             movimientos: countMovimientos,
             transferencias: totalTransferencias,
-          }),
-        });
+          },
+        );
       }
       await this.cuentaRepository.softRemove(cuenta);
       return 'Cuenta eliminada correctamente';

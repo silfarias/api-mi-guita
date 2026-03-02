@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsuarioService } from '../usuario/usuario.service';
 import { UsuarioDTO } from '../usuario/dto/usuario.dto';
@@ -8,6 +8,7 @@ import { ChangePasswordRequestDto } from './dto/change-password-request.dto';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { ChangePasswordResponseDto } from './dto/change-password-response.dto';
 import { EmailService } from 'src/common/email/email.service';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +16,7 @@ export class AuthService {
         private usuarioService: UsuarioService,
         private jwtService: JwtService,
         private emailService: EmailService,
+    private readonly errorHandler: ErrorHandlerService,
     ) { }
 
     private getAccessTokenSecret(): string {
@@ -142,21 +144,25 @@ export class AuthService {
     async changePassword(changePasswordDto: ChangePasswordRequestDto): Promise<ChangePasswordResponseDto> {
         // Validar que las contraseñas coincidan
         if (changePasswordDto.contrasena !== changePasswordDto.confirmarContrasena) {
-            throw new BadRequestException({
-                code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-                message: 'Las contraseñas no coinciden',
-                details: 'La contraseña y su confirmación deben ser iguales',
-            });
+            this.errorHandler.throwBadRequest(
+                ERRORS.VALIDATION.INVALID_INPUT,
+                {
+                    message: 'Las contraseñas no coinciden',
+                    details: 'La contraseña y su confirmación deben ser iguales',
+                },
+            );
         }
 
         // No permitir cambiar contraseña si el email no está verificado (recuperación por email)
         const usuarioEntity = await this.usuarioService.findByEmail(changePasswordDto.email);
         if (!usuarioEntity.emailVerificado) {
-            throw new BadRequestException({
-                code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-                message: 'Verificá tu correo primero para poder cambiar tu contraseña',
-                details: 'Usá la opción "Verificar correo" en Mi cuenta o Perfil.',
-            });
+            this.errorHandler.throwBadRequest(
+                ERRORS.VALIDATION.INVALID_INPUT,
+                {
+                    message: 'Verificá tu correo primero para poder cambiar tu contraseña',
+                    details: 'Usá la opción "Verificar correo" en Mi cuenta o Perfil.',
+                },
+            );
         }
 
         // Cambiar la contraseña usando el email proporcionado

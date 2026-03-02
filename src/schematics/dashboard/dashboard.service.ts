@@ -85,7 +85,7 @@ export class DashboardService {
       }),
     );
 
-    const alertas = this.buildAlertas(presupuestos);
+    const alertas = this.buildAlertas(presupuestosDto);
 
     return {
       saldoTotal,

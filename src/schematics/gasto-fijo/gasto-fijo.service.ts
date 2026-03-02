@@ -1,4 +1,4 @@
-import { Injectable, HttpException, Inject, forwardRef, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpException, Inject, forwardRef, NotFoundException } from '@nestjs/common';
 
 import { GetEntityService } from 'src/common/services/get-entity.service';
 import { ErrorHandlerService } from 'src/common/services/error-handler.service';
@@ -63,20 +63,18 @@ export class GastoFijoService {
     try {
       const categoria = await this.getEntityService.findById(Categoria, request.categoriaId);
       if (categoria.tipo !== TipoCategoriaEnum.EGRESO) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'La categoría del gasto fijo debe ser de tipo EGRESO',
-          details: JSON.stringify({ categoriaId: request.categoriaId }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          { message: 'La categoría del gasto fijo debe ser de tipo EGRESO', categoriaId: request.categoriaId },
+        );
       }
       const diaVen = new Date(request.diaVencimiento);
       const dia = diaVen.getDate();
       if (dia < 1 || dia > 31) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'El día de vencimiento debe estar entre 1 y 31',
-          details: JSON.stringify({ diaVencimiento: request.diaVencimiento }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          { message: 'El día de vencimiento debe estar entre 1 y 31', diaVencimiento: request.diaVencimiento },
+        );
       }
       const usuario = await this.getEntityService.findById(Usuario, usuarioId);
 
@@ -87,11 +85,10 @@ export class GastoFijoService {
         .getOne();
 
       if (gastoFijoExistente) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'Ya existe un gasto fijo con ese nombre para este usuario',
-          details: JSON.stringify({ nombre: request.nombre }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          { message: 'Ya existe un gasto fijo con ese nombre para este usuario', nombre: request.nombre },
+        );
       }
 
       const newGastoFijo = await this.gastoFijoMapper.createDTO2Entity(request);
@@ -125,11 +122,10 @@ export class GastoFijoService {
           this.errorHandler.throwNotFound(ERRORS.DATABASE.RECORD_NOT_FOUND, { categoriaId: request.categoriaId });
         }
         if (categoriaExiste.tipo !== TipoCategoriaEnum.EGRESO) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'La categoría del gasto fijo debe ser de tipo EGRESO',
-            details: JSON.stringify({ categoriaId: request.categoriaId }),
-          });
+          this.errorHandler.throwBadRequest(
+            ERRORS.VALIDATION.INVALID_INPUT,
+            { message: 'La categoría del gasto fijo debe ser de tipo EGRESO', categoriaId: request.categoriaId },
+          );
         }
       }
 
@@ -137,11 +133,10 @@ export class GastoFijoService {
         const diaVen = new Date(request.diaVencimiento);
         const dia = diaVen.getDate();
         if (dia < 1 || dia > 31) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'El día de vencimiento debe estar entre 1 y 31',
-            details: JSON.stringify({ diaVencimiento: request.diaVencimiento }),
-          });
+          this.errorHandler.throwBadRequest(
+            ERRORS.VALIDATION.INVALID_INPUT,
+            { message: 'El día de vencimiento debe estar entre 1 y 31', diaVencimiento: request.diaVencimiento },
+          );
         }
       }
 
@@ -154,11 +149,10 @@ export class GastoFijoService {
           .getOne();
 
         if (gastoFijoExistente) {
-          throw new BadRequestException({
-            code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-            message: 'Ya existe otro gasto fijo con ese nombre para este usuario',
-            details: JSON.stringify({ nombre: request.nombre }),
-          });
+          this.errorHandler.throwBadRequest(
+            ERRORS.VALIDATION.INVALID_INPUT,
+            { message: 'Ya existe otro gasto fijo con ese nombre para este usuario', nombre: request.nombre },
+          );
         }
       }
 
@@ -197,11 +191,13 @@ export class GastoFijoService {
       if (categorias.length !== categoriaIds.length) {
         const categoriasEncontradas = new Set(categorias.map((c) => c.id));
         const categoriasNoEncontradas = categoriaIds.filter((id) => !categoriasEncontradas.has(id));
-        throw new NotFoundException({
-          code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
-          message: 'Una o más categorías no fueron encontradas',
-          details: JSON.stringify({ categoriaIds: categoriasNoEncontradas }),
-        });
+        this.errorHandler.throwNotFound(
+          {
+            CODE: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+            MESSAGE: 'Una o más categorías no fueron encontradas',
+          },
+          { categoriaIds: categoriasNoEncontradas },
+        );
       }
 
       const nombresEnRequest = request.gastosFijos.map((gf) => gf.nombre.toLowerCase());
@@ -210,11 +206,13 @@ export class GastoFijoService {
         const nombresDuplicados = nombresEnRequest.filter(
           (nombre, index) => nombresEnRequest.indexOf(nombre) !== index,
         );
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'No se pueden crear gastos fijos con nombres duplicados en la misma solicitud',
-          details: JSON.stringify({ nombresDuplicados: [...new Set(nombresDuplicados)] }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          {
+            message: 'No se pueden crear gastos fijos con nombres duplicados en la misma solicitud',
+            nombresDuplicados: [...new Set(nombresDuplicados)],
+          },
+        );
       }
 
       const nombresParaValidar = request.gastosFijos.map((gf) => gf.nombre.toLowerCase());
@@ -226,11 +224,13 @@ export class GastoFijoService {
 
       if (gastosFijosExistentes.length > 0) {
         const nombresExistentes = gastosFijosExistentes.map((gf) => gf.nombre);
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message: 'Uno o más gastos fijos ya existen con esos nombres para este usuario',
-          details: JSON.stringify({ nombresExistentes }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          {
+            message: 'Uno o más gastos fijos ya existen con esos nombres para este usuario',
+            nombresExistentes,
+          },
+        );
       }
 
       const nuevosGastosFijos = await Promise.all(

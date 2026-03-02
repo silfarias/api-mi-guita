@@ -1,8 +1,6 @@
 import {
   Injectable,
   HttpException,
-  BadRequestException,
-  NotFoundException,
 } from '@nestjs/common';
 import { Presupuesto } from './entities/presupuesto.entity';
 import { PresupuestoMapper } from './mappers/presupuesto.mapper';
@@ -77,12 +75,13 @@ export class PresupuestoService {
         request.categoriaId,
       );
       if (categoria.tipo !== TipoCategoriaEnum.EGRESO) {
-        throw new BadRequestException({
-          code: ERRORS.VALIDATION.INVALID_INPUT.CODE,
-          message:
-            'El presupuesto solo puede asignarse a categorías de tipo EGRESO',
-          details: JSON.stringify({ categoriaId: request.categoriaId }),
-        });
+        this.errorHandler.throwBadRequest(
+          ERRORS.VALIDATION.INVALID_INPUT,
+          {
+            message: 'El presupuesto solo puede asignarse a categorías de tipo EGRESO',
+            categoriaId: request.categoriaId,
+          },
+        );
       }
       const existe = await this.presupuestoRepository.existsByUsuarioCategoriaMesAnio(
         usuarioId,
@@ -91,16 +90,15 @@ export class PresupuestoService {
         request.anio,
       );
       if (existe) {
-        throw new BadRequestException({
-          code: ERRORS.DATABASE.DUPLICATE_RECORD.CODE,
-          message:
-            'Ya existe un presupuesto para esta categoría en el mes y año indicados',
-          details: JSON.stringify({
+        this.errorHandler.throwBadRequest(
+          ERRORS.DATABASE.DUPLICATE_RECORD,
+          {
+            message: 'Ya existe un presupuesto para esta categoría en el mes y año indicados',
             categoriaId: request.categoriaId,
             mes: request.mes,
             anio: request.anio,
-          }),
-        });
+          },
+        );
       }
       const entity = (await this.presupuestoMapper.createDTO2Entity(
         request,
