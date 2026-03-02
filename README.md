@@ -1,19 +1,18 @@
-# API Nonna
+# API MiGuita – Finanzas Personales
 
-API REST desarrollada con NestJS para gestión de usuarios y autenticación.
+API REST desarrollada con **NestJS + TypeORM + MySQL** para gestionar finanzas personales: cuentas, movimientos, transferencias, gastos fijos y **presupuestos con dashboard e informes**.
 
-## 🚀 Inicio Rápido
+---
+
+## 🚀 Inicio rápido
 
 ### Instalación
 
 ```bash
-# Instalar dependencias
 npm install
 ```
 
-### Configuración
-
-1. Crear archivo `.env` en la raíz del proyecto con las siguientes variables:
+### Configuración `.env`
 
 ```env
 # Servidor
@@ -21,192 +20,140 @@ PORT=3000
 NODE_ENV=development
 
 # JWT
-JWT_SECRET=tu_clave_secreta_super_segura
+ACCESS_TOKEN_SECRET=tu_clave_secreta_super_segura
+REFRESH_TOKEN_SECRET=tu_refresh_secreto
+ACCESS_TOKEN_EXPIRES_IN=1d
+REFRESH_TOKEN_EXPIRES_IN=7d
 
 # Base de Datos MySQL
 DB_HOST=localhost
 DB_PORT=3306
 DB_USERNAME=root
 DB_PASSWORD=tu_password
-DB_NAME=nonna
+DB_NAME=miguita
 ```
 
-2. Crear la base de datos MySQL:
+La base de datos debe existir antes de levantar la app:
+
 ```sql
-CREATE DATABASE nonna;
+CREATE DATABASE miguita;
 ```
 
-### Iniciar el Servidor
+### Levantar el servidor
 
 ```bash
-# Modo desarrollo (con hot-reload)
-npm run start:dev
-
-# Modo producción
-npm run build
-npm run start:prod
-```
-
-El servidor estará disponible en `http://localhost:3000`
-
-## 📚 Documentación API
-
-Una vez iniciado el servidor, la documentación Swagger está disponible en:
-```
-http://localhost:3000/api
-```
-
-## 🔐 Endpoints Principales
-
-### Autenticación
-
-#### POST `/auth/signup`
-Registrar nuevo usuario y autenticarlo
-```json
-{
-  "nombre": "Juan",
-  "apellido": "Pérez",
-  "nombreUsuario": "juanperez123",
-  "contrasena": "mipassword123",
-  "email": "juanperez@gmail.com",
-  "activo": true
-}
-```
-
-#### POST `/auth/login`
-Iniciar sesión
-```json
-{
-  "email": "juanperez@gmail.com",
-  "contrasena": "mipassword123"
-}
-```
-
-#### PATCH `/auth/change-password`
-Cambiar contraseña (no requiere autenticación)
-```json
-{
-  "email": "juanperez@gmail.com",
-  "contrasena": "nuevaPassword123",
-  "confirmarContrasena": "nuevaPassword123"
-}
-```
-
-#### GET `/auth/me`
-Obtener información del usuario autenticado (requiere token JWT)
-
-### Usuarios
-
-#### POST `/usuario`
-Crear un nuevo usuario
-```json
-{
-  "nombre": "María",
-  "apellido": "González",
-  "nombreUsuario": "mariagonzalez",
-  "contrasena": "password123",
-  "email": "maria@gmail.com",
-  "activo": true
-}
-```
-
-#### POST `/usuario/with-id`
-Crear usuario con ID de persona existente
-```json
-{
-  "personaId": 1,
-  "nombreUsuario": "usuario123",
-  "contrasena": "password123",
-  "email": "usuario@gmail.com",
-  "activo": true
-}
-```
-
-#### GET `/usuario/search`
-Buscar usuarios (requiere autenticación)
-```
-GET /usuario/search?page=1&limit=10&nombreUsuario=usuario
-```
-
-#### GET `/usuario/:id`
-Obtener usuario por ID (requiere autenticación)
-
-#### PATCH `/usuario/:id`
-Actualizar usuario (requiere autenticación)
-```json
-{
-  "nombreUsuario": "nuevoUsuario",
-  "email": "nuevo@email.com",
-  "nombre": "Nuevo Nombre",
-  "apellido": "Nuevo Apellido"
-}
-```
-
-#### DELETE `/usuario/:id`
-Eliminar usuario (requiere autenticación)
-
-### Personas
-
-#### POST `/persona`
-Crear una nueva persona
-```json
-{
-  "nombre": "Carlos",
-  "apellido": "Rodríguez"
-}
-```
-
-#### GET `/persona/search`
-Buscar personas con sus usuarios (requiere autenticación)
-```
-GET /persona/search?page=1&limit=10&nombre=Carlos
-```
-
-#### GET `/persona/:id`
-Obtener persona por ID con sus usuarios (requiere autenticación)
-
-#### DELETE `/persona/:id`
-Eliminar persona y sus usuarios asociados (requiere autenticación)
-
-## 🔑 Autenticación
-
-Para acceder a endpoints protegidos, incluir el token JWT en el header:
-
-```
-Authorization: Bearer <token_jwt>
-```
-
-El token se obtiene al hacer login o signup.
-
-## 📋 Scripts Disponibles
-
-```bash
-# Desarrollo
+# Desarrollo (hot reload)
 npm run start:dev
 
 # Producción
 npm run build
 npm run start:prod
-
-# Linting
-npm run lint
-
-# Formateo
-npm run format
 ```
 
-## 🛠️ Tecnologías
+Servidor: `http://localhost:3000`  
+Swagger: `http://localhost:3000/api`
 
-- **NestJS** - Framework Node.js
-- **TypeORM** - ORM para MySQL
-- **JWT** - Autenticación con tokens
-- **Swagger** - Documentación API
-- **bcrypt** - Encriptación de contraseñas
-- **class-validator** - Validación de datos
+Para endpoints protegidos, usar:
 
-## 📝 Notas
+```text
+Authorization: Bearer <access_token>
+```
 
-- Las contraseñas se encriptan automáticamente con bcrypt
-- Los usuarios eliminados se marcan con soft delete (no se borran físicamente)
-- Una persona puede tener múltiples usuarios asociados
-- Un usuario pertenece a una única persona
+---
+
+## 🧠 Conceptos clave
+
+- **Usuario / Persona**: identidad básica para autenticación y perfil.
+- **Cuenta**: Efectivo, banco, billetera, etc. Tiene `saldoActual` dinámico.
+- **Movimiento**:
+  - `INGRESO` / `EGRESO`: modifican saldo de la cuenta.
+  - `SALDO_INICIAL`: se crea al definir saldo inicial de una cuenta.
+  - `TRANSFERENCIA`: representada por el módulo de transferencias (no usa categoría).
+- **Transferencia**: mueve dinero entre dos cuentas del mismo usuario, validando saldo suficiente.
+- **Categoría**: tipo `INGRESO` o `EGRESO`. Se usa en movimientos y gastos fijos.
+- **Gasto fijo**: gastos recurrentes (alquiler, servicios) + pagos mensuales (`pago-gasto-fijo`).
+- **Presupuesto**: límite de gasto por **categoría y mes** (solo categorías de tipo EGRESO).
+- **Dashboard**: endpoint único que devuelve resumen del mes (saldos, gastos, presupuestos y alertas).
+- **Reportes**: vistas agregadas por categoría, cuenta, evolución y flujo.
+
+La integridad de saldo se mantiene siempre a partir de los movimientos y transferencias, no se edita a mano.
+
+---
+
+## 📦 Módulos principales y endpoints
+
+- **Auth** (`/auth`)
+  - `POST /signup` – alta de usuario + login.
+  - `POST /login` – login con usuario/contraseña.
+  - `POST /refresh` – renueva access/refresh token.
+  - `GET /me` – usuario actual.
+  - `PATCH /change-password` – cambio de contraseña (requiere email verificado).
+  - Verificación de email: `POST /verify-email`, `POST /send-verification-email`, etc.
+
+- **Usuario / Persona** (`/usuario`, `/persona`)
+  - CRUD básico, búsqueda paginada; usados por auth y perfil.
+
+- **Cuenta** (`/cuenta`)
+  - `POST /` – crear cuenta (opcional `saldoInicial`, genera movimiento `SALDO_INICIAL`).
+  - `POST /bulk` – crear varias cuentas a la vez (valida duplicados por nombre).
+  - `GET /list`, `GET /search`, `GET /:id` – listar/buscar/ver cuentas de un usuario.
+  - `PATCH /:id`, `DELETE /:id` – actualizar o eliminar (no permite eliminar con movimientos/transferencias asociadas).
+
+- **Movimiento** (`/movimiento`)
+  - CRUD completo de movimientos (ingresos, egresos, saldo inicial).
+  - Search paginado y versiones agrupadas para reportes.
+  - Todas las operaciones actualizan `saldoActual` de la cuenta de forma transaccional.
+  - Validaciones:
+    - Categoría obligatoria para `INGRESO` y `EGRESO`.
+    - Tipo de categoría debe coincidir con tipo de movimiento (INGRESO/EGRESO).
+    - Permisos por usuario.
+
+- **Transferencia** (`/transferencias`)
+  - `POST /` – crear transferencia entre cuentas del mismo usuario.
+  - Reglas: origen ≠ destino, saldo suficiente, actualización de ambos saldos en una transacción.
+
+- **Categoría** (`/categoria`)
+  - CRUD de categorías globales (`INGRESO` / `EGRESO`).
+
+- **Gasto fijo / Pagos** (`/gasto-fijo`, `/pago-gasto-fijo`)
+  - Definición de gastos recurrentes + pagos por mes/año.
+  - Al registrar un pago, puede crear automáticamente un movimiento de `EGRESO` en la cuenta elegida.
+
+- **Presupuesto** (`/presupuesto`)
+  - `POST /` – crear presupuesto `{ categoriaId, mes, anio, monto }`.
+  - `GET /?mes=&anio=` – listar presupuestos del mes.
+  - `GET /:id`, `PATCH /:id`, `DELETE /:id` – CRUD.
+  - Reglas:
+    - Solo categorías tipo EGRESO.
+    - Un presupuesto por (usuario, categoría, mes, año).
+
+- **Dashboard** (`/dashboard`)
+  - `GET /?mes=FEBRERO&anio=2026`
+  - Devuelve en una sola llamada:
+    - `saldoTotal`, `ingresosMes`, `egresosMes`, `balanceMes`.
+    - `topCategoriasGasto`, `gastosPorCategoria`, `gastosPorCuenta`.
+    - `ultimosMovimientos`.
+    - `presupuestos`: `{ categoria, presupuesto, gastado, restante, porcentaje, estado }`.
+    - `alertas` en base al estado de los presupuestos (OK, ALERTA, EXCEDIDO).
+
+- **Reportes** (`/reportes`)
+  - `GET /categorias?mes=&anio=` – gastos por categoría.
+  - `GET /cuentas?mes=&anio=` – ingresos/egresos por cuenta (mes/año opcionales).
+  - `GET /evolucion?anio=` – balance mensual del año.
+  - `GET /flujo?mes=&anio=` – ingresos, egresos y balance (mes/año opcionales).
+
+Todos estos módulos están documentados en Swagger con sus DTOs y ejemplos.
+
+---
+
+## 🛠️ Tecnologías y utilidades
+
+- **NestJS** + **TypeORM** + **MySQL**.
+- **JWT** (access + refresh) con expiraciones configurables.
+- **Swagger** para documentación interactiva.
+- **class-validator / class-transformer** en todos los DTOs.
+- Servicios comunes:
+  - `GetEntityService` – búsquedas reutilizables con manejo estándar de `NotFound`.
+  - `ErrorHandlerService` – construcción uniforme de errores (`code`, `message`, `details`) y mapeo de errores de base de datos.
+
+Con esto deberías tener una visión clara de qué hace la API MiGuita, cómo arrancarla y cuáles son los módulos clave para integrarla con tu frontend.
