@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CommonDTO } from 'src/common/dto/common.dto';
 import { Expose } from 'class-transformer';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
 export class CategoriaDTO extends CommonDTO {
 
@@ -11,6 +12,10 @@ export class CategoriaDTO extends CommonDTO {
   @ApiProperty({ description: 'Descripción de la categoría', example: 'Gastos relacionados con comida y bebida', required: false })
   @Expose()
   descripcion: string | null;
+
+  @ApiProperty({ description: 'Tipo de categoría (INGRESO o EGRESO)', enum: TipoCategoriaEnum })
+  @Expose()
+  tipo: TipoCategoriaEnum;
 
   @ApiProperty({ description: 'Color de la categoría', example: '#FF5733', required: false })
   @Expose()

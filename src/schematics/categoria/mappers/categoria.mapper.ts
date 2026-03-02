@@ -29,6 +29,7 @@ export class CategoriaMapper {
   createDTO2Entity(request: CreateCategoriaRequestDto): Promise<Categoria> {
     const newCategoria: Categoria = new Categoria();
     newCategoria.nombre = request.nombre;
+    newCategoria.tipo = request.tipo;
     newCategoria.descripcion = request.descripcion || null;
     newCategoria.color = request.color || null;
     newCategoria.icono = request.icono || null;
@@ -42,6 +43,9 @@ export class CategoriaMapper {
   ): Promise<Categoria> {
     if (request.nombre !== undefined) {
       categoria.nombre = request.nombre;
+    }
+    if (request.tipo !== undefined) {
+      categoria.tipo = request.tipo;
     }
     if (request.descripcion !== undefined) {
       categoria.descripcion = request.descripcion;

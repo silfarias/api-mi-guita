@@ -4,17 +4,17 @@ import { TipoCuentaEnum } from 'src/common/enums/tipo-cuenta-enum';
 import { Type } from 'class-transformer';
 
 export class CreateCuentaRequestDto {
-  @ApiProperty({ description: 'Nombre de la cuenta', example: 'Mercado Pago' })
+  @ApiProperty({ description: 'Nombre de la cuenta', type: String, required: true, example: 'Mercado Pago' })
   @IsNotEmpty()
   @IsString()
   nombre: string;
 
-  @ApiProperty({ description: 'Tipo de cuenta', enum: TipoCuentaEnum })
+  @ApiProperty({ description: 'Tipo de cuenta', enum: TipoCuentaEnum, required: true })
   @IsNotEmpty()
   @IsEnum(TipoCuentaEnum)
   tipo: TipoCuentaEnum;
 
-  @ApiProperty({ description: 'Saldo inicial (opcional, default 0)', example: 0, minimum: 0 })
+  @ApiProperty({ description: 'Saldo inicial (opcional, default 0)', type: Number, required: false, example: 0, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

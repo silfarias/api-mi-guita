@@ -22,6 +22,9 @@ export class CategoriaRepository extends Repository<Categoria> {
         nombre: `%${request.nombre}%`,
       });
     }
+    if (request.tipo) {
+      qb.andWhere('categoria.tipo = :tipo', { tipo: request.tipo });
+    }
     if (request.activo !== undefined) {
       qb.andWhere('categoria.activo = :activo', { activo: request.activo });
     }

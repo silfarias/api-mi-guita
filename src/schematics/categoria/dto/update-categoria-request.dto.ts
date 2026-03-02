@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsBoolean, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsEnum, MaxLength } from 'class-validator';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
 export class UpdateCategoriaRequestDto {
 
@@ -13,6 +14,15 @@ export class UpdateCategoriaRequestDto {
   @IsString()
   @MaxLength(100)
   nombre?: string;
+
+  @ApiProperty({ 
+    description: 'Tipo de categoría (INGRESO o EGRESO)', 
+    enum: TipoCategoriaEnum, 
+    nullable: true 
+  })
+  @IsOptional()
+  @IsEnum(TipoCategoriaEnum)
+  tipo?: TipoCategoriaEnum;
 
   @ApiProperty({ 
     description: 'Descripción de la categoría', 

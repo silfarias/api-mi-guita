@@ -2,6 +2,7 @@ import { BaseEntity } from 'src/common/models/baseentity';
 import { GastoFijo } from 'src/schematics/gasto-fijo/entities/gasto-fijo.entity';
 import { Movimiento } from 'src/schematics/movimiento/entities/movimiento.entity';
 import { Column, Entity, OneToMany } from 'typeorm';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
 @Entity('cat_01_cab_categoria')
 export class Categoria extends BaseEntity {
@@ -17,6 +18,9 @@ export class Categoria extends BaseEntity {
 
   @Column({ name: 'cat01_icono', type: 'varchar', length: 100, nullable: true })
   icono: string | null;
+
+  @Column({ name: 'cat01_tipo', type: 'enum', enum: TipoCategoriaEnum, nullable: false })
+  tipo: TipoCategoriaEnum;
 
   @Column({ name: 'cat01_activo', type: 'boolean', default: true })
   activo: boolean;

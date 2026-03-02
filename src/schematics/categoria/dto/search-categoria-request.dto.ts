@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { BaseSearchDto } from 'src/common/dto/base-search.dto';
-import { IsOptional, IsNumber, IsString, IsBoolean } from 'class-validator';
+import { IsOptional, IsNumber, IsString, IsBoolean, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { TipoCategoriaEnum } from 'src/common/enums/tipo-categoria-enum';
 
 export class SearchCategoriaRequestDto extends BaseSearchDto {
 
@@ -15,6 +16,11 @@ export class SearchCategoriaRequestDto extends BaseSearchDto {
   @IsOptional()
   @IsString()
   nombre?: string;
+
+  @ApiProperty({ description: 'Tipo de categoría', enum: TipoCategoriaEnum, required: false })
+  @IsOptional()
+  @IsEnum(TipoCategoriaEnum)
+  tipo?: TipoCategoriaEnum;
 
   @ApiProperty({ description: 'Estado activo', type: Boolean, required: false })
   @IsOptional()
