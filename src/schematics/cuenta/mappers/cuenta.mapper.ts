@@ -30,7 +30,7 @@ export class CuentaMapper {
     const cuenta = new Cuenta();
     cuenta.nombre = request.nombre;
     cuenta.tipo = request.tipo;
-    cuenta.saldoActual = request.saldoInicial ?? 0;
+    cuenta.saldoActual = 0;
     return cuenta;
   }
 

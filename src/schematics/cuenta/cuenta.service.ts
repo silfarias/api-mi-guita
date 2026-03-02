@@ -1,4 +1,4 @@
-import { Injectable, HttpException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpException, BadRequestException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { Cuenta } from './entities/cuenta.entity';
 import { CuentaMapper } from './mappers/cuenta.mapper';
 import { CuentaRepository } from './repository/cuenta.repository';
@@ -12,6 +12,7 @@ import { GetEntityService } from 'src/common/services/get-entity.service';
 import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { Usuario } from '../usuario/entities/usuario.entity';
+import { MovimientoService } from '../movimiento/movimiento.service';
 
 @Injectable()
 export class CuentaService {
@@ -20,6 +21,8 @@ export class CuentaService {
     private readonly cuentaRepository: CuentaRepository,
     private readonly getEntityService: GetEntityService,
     private readonly errorHandler: ErrorHandlerService,
+    @Inject(forwardRef(() => MovimientoService))
+    private readonly movimientoService: MovimientoService,
   ) {}
 
   async findOne(id: number, usuarioId: number): Promise<CuentaDTO> {
@@ -66,6 +69,10 @@ export class CuentaService {
       const newCuenta = (await this.cuentaMapper.createDTO2Entity(request)) as Cuenta;
       newCuenta.usuario = usuario;
       const saved = await this.cuentaRepository.save(newCuenta);
+      const saldoInicial = request.saldoInicial ?? 0;
+      if (saldoInicial > 0) {
+        await this.movimientoService.createSaldoInicial(saved.id, saldoInicial, usuarioId);
+      }
       const withRelations = await this.cuentaRepository.findOne({
         where: { id: saved.id },
         relations: ['usuario'],
@@ -116,6 +123,12 @@ export class CuentaService {
       );
 
       const guardadas = await this.cuentaRepository.save(nuevasCuentas);
+      for (let i = 0; i < guardadas.length; i++) {
+        const saldoInicial = request.cuentas[i].saldoInicial ?? 0;
+        if (saldoInicial > 0) {
+          await this.movimientoService.createSaldoInicial(guardadas[i].id, saldoInicial, usuarioId);
+        }
+      }
       const ids = guardadas.map((c) => c.id);
       const conRelaciones = await this.cuentaRepository.find({
         where: ids.map((id) => ({ id })),

@@ -11,6 +11,7 @@ import { PageDto } from 'src/common/dto/page.dto';
 import { ERRORS } from 'src/common/errors/errors-codes';
 import { TipoMovimientoEnum } from 'src/common/enums/tipo-movimiento-enum';
 import { Categoria } from '../categoria/entities/categoria.entity';
+import { ErrorHandlerService } from 'src/common/services/error-handler.service';
 
 @Injectable()
 export class MovimientoService {
@@ -19,6 +20,7 @@ export class MovimientoService {
     private movimientoRepository: MovimientoRepository,
     private cuentaRepository: CuentaRepository,
     private categoriaRepository: CategoriaRepository,
+    private errorHandler: ErrorHandlerService,
   ) {}
 
   async findOne(id: number): Promise<MovimientoDTO> {
@@ -53,6 +55,40 @@ export class MovimientoService {
     if (delta === 0) return;
     cuenta.saldoActual = Number(cuenta.saldoActual ?? 0) + delta;
     await this.cuentaRepository.save(cuenta);
+  }
+
+  /**
+   * Crea un movimiento de tipo SALDO_INICIAL y actualiza el saldo de la cuenta.
+   * Usado al crear una cuenta con saldo inicial (onboarding).
+   */
+  async createSaldoInicial(cuentaId: number, monto: number, usuarioId: number): Promise<void> {
+    if (monto <= 0) return;
+    const cuenta = await this.cuentaRepository.findOne({
+      where: { id: cuentaId, usuario: { id: usuarioId } },
+      relations: ['usuario'],
+    });
+    if (!cuenta) {
+      throw new NotFoundException({
+        code: ERRORS.DATABASE.RECORD_NOT_FOUND.CODE,
+        message: 'Cuenta no encontrada',
+        details: JSON.stringify({ cuentaId }),
+      });
+    }
+    const saldoInicialRequest: CreateMovimientoRequestDto = {
+      cuentaId,
+      tipoMovimiento: TipoMovimientoEnum.SALDO_INICIAL,
+      descripcion: 'Saldo inicial',
+      monto,
+      fecha: new Date()
+    };
+    const newMovimiento = await this.movimientoMapper.createDTO2Entity(
+      saldoInicialRequest,
+      cuenta,
+      null,
+      usuarioId,
+    );
+    await this.movimientoRepository.save(newMovimiento);
+    await this.aplicarSaldo(cuentaId, monto, TipoMovimientoEnum.SALDO_INICIAL, true);
   }
 
   async create(request: CreateMovimientoRequestDto, usuarioId: number): Promise<MovimientoSimpleDTO> {
