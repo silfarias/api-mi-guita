@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { Movimiento } from '../entities/movimiento.entity';
-import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO } from '../dto/movimiento.dto';
+import { MovimientoDTO, MovimientoAgrupadoDTO, MovimientoSimpleDTO, MovimientoItemAgrupadoDTO } from '../dto/movimiento.dto';
 import { CreateMovimientoRequestDto } from '../dto/create-movimiento-request.dto';
 import { UpdateMovimientoRequestDto } from '../dto/update-movimiento-request.dto';
 import { SearchMovimientoRequestDto } from '../dto/search-movimiento-request.dto';
@@ -44,6 +44,18 @@ export class MovimientoMapper {
     return dto;
   }
 
+  /** Para listado agrupado por cuenta: mismo contenido que Simple pero sin cuenta (evita redundancia). */
+  async entity2ItemAgrupadoDTO(movimiento: Movimiento): Promise<MovimientoItemAgrupadoDTO> {
+    const dto = plainToInstance(MovimientoItemAgrupadoDTO, movimiento, {
+      excludeExtraneousValues: true,
+    });
+    if (movimiento.categoria) {
+      dto.categoria = await this.categoriaMapper.entity2DTO(movimiento.categoria);
+    }
+    dto.monto = Number(movimiento.monto ?? 0);
+    return dto;
+  }
+
   async page2Dto(
     request: SearchMovimientoRequestDto,
     page: PageDto<Movimiento>,
@@ -76,7 +88,7 @@ export class MovimientoMapper {
       Array.from(agrupados.entries()).map(async ([cuentaId, movimientos]) => {
         const cuenta = movimientos[0].cuenta;
         const movimientosDTOs = await Promise.all(
-          movimientos.map((m) => this.entity2SimpleDTO(m)),
+          movimientos.map((m) => this.entity2ItemAgrupadoDTO(m)),
         );
         const agrupado = plainToInstance(MovimientoAgrupadoDTO, {}, {
           excludeExtraneousValues: true,
@@ -113,8 +125,6 @@ export class MovimientoMapper {
   async updateDTO2Entity(
     movimiento: Movimiento,
     request: UpdateMovimientoRequestDto,
-    categoria?: Categoria | null,
-    cuenta?: Cuenta | null,
   ): Promise<Movimiento> {
     if (request.fecha !== undefined) {
       movimiento.fecha = request.fecha ? new Date(request.fecha) : new Date();
@@ -128,11 +138,11 @@ export class MovimientoMapper {
     if (request.monto !== undefined) {
       movimiento.monto = request.monto;
     }
-    if (categoria !== undefined) {
-      movimiento.categoria = categoria ?? null;
+    if (request.categoriaId !== undefined) {
+      movimiento.categoria = request.categoriaId ? Categoria.fromId(request.categoriaId) : null;
     }
-    if (cuenta !== undefined) {
-      movimiento.cuenta = cuenta ?? movimiento.cuenta;
+    if (request.cuentaId !== undefined) {
+      movimiento.cuenta = request.cuentaId ? Cuenta.fromId(request.cuentaId) : movimiento.cuenta;
     }
     return movimiento;
   }

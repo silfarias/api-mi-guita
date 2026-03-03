@@ -273,8 +273,6 @@ export class MovimientoService {
     const updateMovimiento = await this.movimientoMapper.updateDTO2Entity(
       movimiento,
       request,
-      categoria,
-      cuenta,
     );
 
     const queryRunner = this.dataSource.createQueryRunner();
